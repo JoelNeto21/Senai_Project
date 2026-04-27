@@ -1,94 +1,183 @@
 # 📚 SenaiStock - API de Controle de Estoque
 
-**Autores:** Joel, Júlio, Murilo | **Local:** SENAI Limeira (2026)
-
-https://app.milanote.com/1VTtUj1yQuuz4N?p=ZK5fK3a4HXt
-
-<br>
+**Autores:** Joel, Júlio, Murilo  
+**Instituição:** SENAI Limeira (2026)  
+Acesse todo o nosso planejamento no [Milanote](https://app.milanote.com/1VTtUj1yQuuz4N?p=ZK5fK3a4HXt)
 
 ---
 
-## Sobre o Projeto
+## Situação Problema
 
-O **SenaiStock** é uma API Back-End desenvolvida para resolver um problema crítico de controle quantitativo de livros didáticos. 
+O **SenaiStock** é uma API RESTful desenvolvida para modernizar a gestão de materiais didáticos. O foco principal é garantir que a jornada de aprendizado não seja interrompida por falhas logísticas, oferecendo um controle rigoroso e em tempo real do saldo de livros.
 
-O Senai envia periodicamente grandes remessas de livros para as unidades de ensino, que ficam armazenados no almoxarifado e são retirados pelos instrutores conforme a necessidade. O problema atual é a falta de controle sobre o saldo remanescente, gerando atrasos no aprendizado quando o estoque zera inesperadamente.
+Atualmente, as unidades de ensino recebem grandes remessas de livros que são armazenados em almoxarifados. Sem um sistema digital centralizado, o controle do saldo é falho, resultando em:
 
-**Objetivo:** Manter o saldo do estoque sempre atualizado, permitindo somar livros quando chegam da editora e subtrair (dar baixa) quando são retirados para as turmas.
-
-<br>
-
----
-
-## Funcionalidades Essenciais
-
-* **🔒 Autenticação Simples:** Sistema de login para garantir que apenas funcionários autorizados (Almoxarife ou Coordenador) possam alterar o estoque.
-* **📚 Catálogo de Livros:** Cadastro dos títulos disponíveis contendo Título, ISBN e Matéria.
-* **📦 Entrada de Estoque (Abastecimento):** Rota para registrar a chegada de caixas, somando a quantidade informada ao saldo atual.
-* **📤 Saída de Estoque (Baixa Manual):** Rota para registrar a retirada de livros informando a quantidade e o motivo. Bloqueia a operação se o estoque for insuficiente.
-* **⚠️ Monitoramento de Saldo:** Rota que lista os livros com estoque abaixo de um nível mínimo (menos de 10 unidades), indicando necessidade de reposição.
-
-<br>
+- Esgotamento inesperado de títulos
+- Atrasos no cronograma de aulas
+- Dificuldade em prever novas ordens de compra/remessa
+- Falta de transparência no controle de estoque
+- Desperdício ou perda de materiais por falta de organização
 
 ---
 
-## Levantamento de Requisitos
+## Objetivo do Projeto
 
-### Requisitos Funcionais (RF)
-O que o sistema faz diretamente para o usuário.
+Desenvolver o Back-End do **SenaiStock** utilizando Laravel, responsável por:
 
-| ID | Requisito | Descrição |
-| :--- | :--- | :--- |
-| **RF01** | Autenticação de Usuários | O sistema deve permitir o login de funcionários autorizados (Almoxarife ou Coordenador). |
-| **RF02** | Cadastro de Livros | Deve ser possível cadastrar títulos com Título, ISBN e Matéria. |
-| **RF03** | Entrada de Estoque | O sistema deve permitir registrar a chegada de novas remessas, informando o livro e a quantidade para somar ao saldo. |
-| **RF04** | Saída de Estoque (Baixa) | Deve permitir registrar a retirada de livros para as turmas, informando livro, quantidade e motivo (ex: Turma A). |
-| **RF05** | Validação de Saldo | O sistema deve bloquear a saída de livros se a quantidade solicitada for maior que o saldo disponível. |
-| **RF06** | Monitoramento de Nível Mínimo| Deve listar automaticamente livros com estoque abaixo de 10 unidades para reposição. |
-| **RF07** | Cálculo de Saldo Atualizado| O sistema deve realizar a operação matemática de somar/subtrair para manter o saldo sempre em tempo real. |
-| **RF08** | Listagem de Catálogo | O sistema deve permitir visualizar todos os livros cadastrados e suas quantidades atuais. |
-
-<br>
-
-### Requisitos Não-Funcionais (RNF)
-Atributos de qualidade e restrições técnicas do sistema.
-
-| ID | Requisito | Descrição |
-| :--- | :--- | :--- |
-| **RNF01**| Tecnologia Back-End | O sistema deve ser desenvolvido obrigatoriamente em Laravel (PHP). |
-| **RNF02**| Banco de Dados | Deve utilizar o banco de dados relacional MySQL. |
-| **RNF03**| Persistência de Dados | O uso do Eloquent ORM é obrigatório para modelar tabelas e relações. |
-| **RNF04**| Arquitetura | O sistema deve seguir o padrão de API RESTful, retornando respostas obrigatoriamente em formato JSON. |
-| **RNF05**| Qualidade de Código | O código deve seguir os padrões PSR e os princípios de Clean Code. |
-| **RNF06**| Segurança | A API deve ser protegida por autenticação para garantir que apenas perfis autorizados alterem o estoque. |
-| **RNF07**| Versionamento | O projeto deve ser publicado obrigatoriamente no GitHub. |
-
-<br>
-
-### Requisitos de Negócio (RN)
-Políticas que regem o funcionamento do processo de negócio.
-
-| ID | Requisito | Descrição |
-| :--- | :--- | :--- |
-| **RN01** | Estoque Insuficiente | Nenhuma saída de estoque pode ser processada se o resultado final do saldo for negativo. |
-| **RN02** | Nível Crítico | O sistema deve considerar como "estoque baixo" qualquer título com menos de 10 unidades. |
-| **RN03** | Perfis de Acesso | Apenas usuários autenticados como "Almoxarife" ou "Coordenador" podem realizar movimentações de entrada e saída. |
-
-<br>
+- Gerenciar usuários com níveis de acesso distintos (Almoxarife e Coordenador)
+- Controlar entrada e saída de materiais didáticos
+- Garantir rastreabilidade e histórico das movimentações
+- Fornecer transparência no acompanhamento do estoque
+- Alertar automaticamente sobre níveis críticos de reposição
 
 ---
 
-## Próximos Passos e Artefatos do Projeto
+## Documentação
 
-* **Diagramas:** *(Adicionar link para a pasta de diagramas ou imagens aqui futuramente)*.
-* **Prototipagem:** *(Adicionar link para a pasta de protótipos ou imagens aqui futuramente)*.
-* **Metodologias Ágeis:** O time utilizará práticas ágeis para organização e distribuição de tarefas durante as Sprints e se organizando pelo modelo Kanban.
-
-<br>
+A documentação completa do projeto, incluindo diagramas de banco de dados, fluxos de API e especificações técnicas, está disponível no [Milanote](https://app.milanote.com/1VTtUj1yQuuz4N?p=ZK5fK3a4HXt).
 
 ---
 
-**Clone o repositório:**
-   ```bash
-   git clone [https://github.com/JoelNeto21/Senai_Project.git](https://github.com/JoelNeto21/Senai_Project.git)
-   cd Senai_Project
+## Levantamentos de Requisitos
+
+Nesta etapa, foi realizado o levantamento de requisitos com base nas necessidades do sistema, considerando aspectos como funcionalidade, desempenho e segurança.
+
+O objetivo é identificar e organizar os requisitos funcionais e não funcionais, garantindo uma solução eficiente, mais ágil e transparente para os usuários.
+
+### Requisitos Funcionais
+
+- Cadastro e autenticação de usuários com diferentes perfis
+- Cadastro de títulos de livros com ISBN, matéria e metadados
+- Registro de movimentações de entrada (recebimento de remessas)
+- Registro de movimentações de saída (baixa para turmas)
+- Listagem de livros com filtro por nível de estoque
+- Histórico completo de todas as movimentações
+
+### Requisitos Não Funcionais
+
+- API RESTful com respostas em JSON
+- Autenticação segura via token
+- Validação de dados para evitar estoque negativo
+- Performance adequada para múltiplas requisições simultâneas
+
+---
+
+## Prototipagem
+
+Nesta etapa, é definida a interface inicial da plataforma por meio da criação de protótipos no Figma. Essa fase permite visualizar o design, a organização das informações e a navegação do sistema.
+
+Com base nesses protótipos, são feitas melhorias contínuas a partir de testes e análises, garantindo uma base mais sólida para o desenvolvimento final.
+
+---
+
+## Metodologia Ágeis
+
+Nesta etapa, são aplicadas metodologias ágeis para organizar o desenvolvimento do projeto, utilizando o Scrum. O trabalho é dividido em ciclos curtos, chamados Sprints, permitindo entregas contínuas e melhorias ao longo do processo.
+
+- **Planejamento:** Kanban via Trello para acompanhamento de tarefas
+- **Sprints:** Ciclos de 1 semana para entrega de módulos
+- **Revisões:** Avaliação contínua do progresso e ajustes
+
+---
+
+## Diagramas
+
+O diagrama de banco de dados representa as entidades principais do sistema:
+
+- **Users** (usuários do sistema)
+- **Books** (cadastro de títulos)
+- **Movements** (registro de entradas e saídas)
+
+Este modelo garante a rastreabilidade completa de todas as movimentações de estoque.
+
+---
+
+## O que a API oferece (Funcionalidades)
+
+### Gestão de Acesso
+- Autenticação segura para perfis de Almoxarife e Coordenador
+- Proteção de rotas sensíveis via middleware
+
+### Catálogo Inteligente
+- Cadastro de títulos com ISBN, matéria e metadados essenciais
+- Listagem completa com filtros e ordenação
+
+### Movimentação de Entrada
+- Registro de novas remessas vindas da editora
+- Soma automática ao saldo existente
+
+### Movimentação de Saída
+- Baixa manual de livros para turmas específicas
+- Obrigatoriedade de justificativa para cada saída
+
+### Alertas de Reposição
+- Filtro automático para identificar livros com menos de 10 unidades
+- Indicador visual de nível crítico de estoque
+
+---
+
+## Especificações Técnicas
+
+Para garantir escalabilidade e manutenibilidade, o projeto utiliza:
+
+| Tecnologia | Descrição |
+|------------|-----------|
+| **Framework** | Laravel (PHP) - padrões PSR e Clean Code |
+| **Banco de Dados** | MySQL com persistência via Eloquent ORM |
+| **Comunicação** | Padrão RESTful com respostas em JSON |
+| **Segurança** | Middleware de autenticação para proteção de rotas |
+
+---
+
+## Regras de Negócio Importantes
+
+1. **Bloqueio de Saldo:** O sistema impede qualquer saída que resulte em estoque negativo
+2. **Nível Crítico:** Constante de "Estoque Baixo" definida em 10 unidades para facilitar gestão visual e relatórios
+3. **Restrição de Operação:** Apenas usuários autenticados e com permissões administrativas podem alterar quantidades
+4. **Justificativa Obrigatória:** Toda saída de livro deve conter uma justificativa (turma, motivo, etc.)
+
+---
+
+## Como executar o projeto?
+
+```bash
+# Clone o repositório
+git clone https://github.com/JoelNeto21/Senai_Project.git
+
+# Entre na pasta do projeto
+cd Senai_Project/breeze/senaiStock
+
+# Instale as dependências do Composer
+composer install
+
+# Copie o arquivo de ambiente
+cp .env.example .env
+
+# Gere a chave da aplicação
+php artisan key:generate
+
+# Configure o banco de dados no arquivo .env e rode as migrations
+php artisan migrate
+
+# Inicie o servidor de desenvolvimento
+php artisan serve
+```
+
+---
+
+## 📂 Estrutura do Projeto
+
+```
+senaiStock/
+├── app/
+│   ├── Http/Controllers/    # Controladores da API
+│   ├── Models/              # Modelos Eloquent
+│   └── Providers/           # Provedores de serviço
+├── database/
+│   ├── migrations/          # Migrações do banco de dados
+│   └── seeders/             # Seeders para dados iniciais
+├── routes/
+│   ├── api.php              # Rotas da API
+│   └── web.php              # Rotas web
+└── tests/                   # Testes automatizados
+```
