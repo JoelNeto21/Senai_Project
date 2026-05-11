@@ -8,12 +8,14 @@ class Funcionario extends Model
 {
     protected $guarded = [];
 
+    protected $primaryKey = 'Id_funcionario';
+
     public function cargo()
     {
-        // Se a coluna na migration for 'cargo_id', use apenas:
-        // return $this->belongsTo(Cargo::class);
-
-        // Se manteve 'Id_cargo_FK', use assim:
-        return $this->belongsTo(Cargo::class, 'Id_cargo_FK');
+        return $this->belongsTo(
+            Cargo::class,
+            'Id_cargo_FK', // FK na tabela funcionarios
+            'Id_cargo'     // PK na tabela cargos
+        );
     }
 }
