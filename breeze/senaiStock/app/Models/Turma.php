@@ -9,9 +9,5 @@ use App\Models\Turma;
 
 class Turma extends Model
 {
-    protected $fillable = ["nome_turma"];
-
-    public function curso() : HasMany{
-        return $this->hasMany(Turma::class);
-    }
+    protected $fillable = ["nome_turma","nome_curso"];
 }

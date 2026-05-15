@@ -3,14 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use App\Models\Turma;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Livro extends Model
 {
-    protected $fillable = ['Isbn', 'Titulo'];
+    protected $fillable = ['Isbn', 'Titulo', 'Categoria'];
 
-public function estoque() {
-    return $this->hasOne(Estoque::class, 'Id_livro_FK');
-}
+    public function estoques() : HasMany {
+        return $this->hasMany(Estoque::class, 'Id_livro_FK');
+    }
 }

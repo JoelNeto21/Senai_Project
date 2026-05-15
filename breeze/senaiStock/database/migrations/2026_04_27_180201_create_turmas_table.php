@@ -14,8 +14,7 @@ return new class extends Migration
         Schema::create('turmas', function (Blueprint $table) {
             $table->id();
             $table->string("nome_turma");
-            $table->foreignId("curso_id")
-            ->constrained();
+            $table->string("nome_curso");
             $table->timestamps();
         });
     }

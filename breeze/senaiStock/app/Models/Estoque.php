@@ -3,14 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use App\Models\Turma;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class Livro extends Model
+class Estoque extends Model
 {
-    protected $fillable = ['Quantidade'];
+    protected $fillable = ['Quantidade', 'Id_livro_FK'];
 
-    public function estoque() : HasMany{
-        return $this->belongsTo(Estoque::class);
+    public function livro() : BelongsTo {
+        return $this->belongsTo(Livro::class, 'Id_livro_FK');
     }
 }
