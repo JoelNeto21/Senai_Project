@@ -12,4 +12,9 @@ class Livro extends Model
     public function estoques() : HasMany {
         return $this->hasMany(Estoque::class, 'Id_livro_FK');
     }
+
+    public function requisicoes()
+{
+    return $this->hasMany(Requisicao::class);
+}
 }
