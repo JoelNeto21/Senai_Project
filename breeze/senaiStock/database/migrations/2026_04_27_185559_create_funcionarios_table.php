@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('funcionarios', function (Blueprint $table) {
 
-            $table->id('Id_funcionario');
+            $table->id();
 
             $table->integer('NIF');
 
@@ -18,11 +18,8 @@ return new class extends Migration
 
             $table->string('Cpf', 14);
 
-            $table->unsignedBigInteger('Id_cargo_FK');
+            $table->foreignId('Id_cargo_FK')->contrained('Cargos');
 
-            $table->foreign('Id_cargo_FK')
-                  ->references('Id_cargo')
-                  ->on('cargos');
 
             $table->timestamps();
         });

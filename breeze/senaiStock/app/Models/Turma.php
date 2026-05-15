@@ -10,4 +10,9 @@ use App\Models\Turma;
 class Turma extends Model
 {
     protected $fillable = ["nome_turma","nome_curso"];
+
+    public function requisicoes()
+{
+    return $this->hasMany(Requisicao::class);
+}
 }

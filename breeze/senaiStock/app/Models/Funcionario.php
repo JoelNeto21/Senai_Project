@@ -18,4 +18,9 @@ class Funcionario extends Model
             'Id_cargo'     // PK na tabela cargos
         );
     }
+
+    public function requisicoes()
+{
+    return $this->hasMany(Requisicao::class);
+}
 }
