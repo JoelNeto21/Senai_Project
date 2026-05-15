@@ -9,7 +9,7 @@ class CargoController extends Controller
 {
 
     public function index(){
-    $cargos = Cargo::all(); // Busca todos os cargos no banco
+    $cargos = Cargo::all(); 
     return view('cargos.index', compact('cargos'));
 }
 
