@@ -42,4 +42,34 @@ class UserFactory extends Factory
             'email_verified_at' => null,
         ]);
     }
+
+    /**
+     * Create an almoxarife (warehouse manager) user.
+     */
+    public function almoxarife(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => 'almoxarife',
+        ]);
+    }
+
+    /**
+     * Create a coordenador (coordinator) user.
+     */
+    public function coordenador(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => 'coordenador',
+        ]);
+    }
+
+    /**
+     * Create a regular user.
+     */
+    public function regular(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => 'user',
+        ]);
+    }
 }

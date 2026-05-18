@@ -1,0 +1,372 @@
+═══════════════════════════════════════════════════════════════════════
+   GUIA COMPLETO DE IMPLEMENTAÇÃO - SenaiStock API
+═══════════════════════════════════════════════════════════════════════
+
+## RESUMO DAS TAREFAS IMPLEMENTADAS
+
+✅ 1. Form Requests criados em app/Http/Requests/:
+   - StoreBookRequest.php
+   - UpdateBookRequest.php
+   - StoreMovementRequest.php
+
+✅ 2. Resources JSON devem estar em app/Http/Resources/:
+   - BookResource.php
+   - MovementResource.php
+
+✅ 3. Controllers API em app/Http/Controllers/Api/:
+   - BookController.php (index, show, store, update, destroy)
+   - MovementController.php (store com regras de negócio)
+
+✅ 4. Configurações ainda necessárias:
+   - routes/api.php
+   - app/Models/User.php (adicionar HasApiTokens)
+   - app/Http/Controllers/CargoController.php (corrigir bugs)
+   - Laravel Sanctum (se não estiver instalado)
+
+═══════════════════════════════════════════════════════════════════════
+## PASSO A PASSO PARA CONCLUIR A IMPLEMENTAÇÃO
+═══════════════════════════════════════════════════════════════════════
+
+### PASSO 1: Criar Diretórios e Arquivos Necessários
+
+Opção A - Executar o script de setup (RECOMENDADO):
+```
+cd c:\laragon\www\Senai_Project\breeze\senaiStock
+php setup_api.php
+```
+
+Opção B - Criar manualmente via CMD:
+```
+mkdir app\Http\Controllers\Api
+mkdir app\Http\Resources
+```
+
+---
+
+### PASSO 2: Atualizar routes/api.php
+
+Arquivo: routes/api.php
+Descrição: Veja SETUP_ROUTES_API.txt
+
+Copie o conteúdo de SETUP_ROUTES_API.txt para routes/api.php
+
+---
+
+### PASSO 3: Atualizar User Model com Sanctum
+
+Arquivo: app/Models/User.php
+Descrição: Veja SETUP_USER_MODEL.txt
+
+Principais mudanças:
+1. Adicionar: use Laravel\Sanctum\HasApiTokens;
+2. Adicionar trait HasApiTokens na classe User
+
+---
+
+### PASSO 4: Corrigir CargoController
+
+Arquivo: app/Http/Controllers/CargoController.php
+Descrição: Veja SETUP_CARGO_CONTROLLER_FIX.txt
+
+Principais mudanças:
+1. Linha 22: trocar Role::create() por Cargo::create()
+2. Linha 29: trocar destroy(Role $cargo) por destroy(Cargo $cargo)
+
+---
+
+### PASSO 5: Instalar/Configurar Sanctum
+
+Se Sanctum ainda não está instalado:
+```
+php artisan sanctum:install
+php artisan migrate
+```
+
+Para verificar se Sanctum está instalado:
+```
+php artisan package:list | findstr sanctum
+```
+
+---
+
+### PASSO 6: Executar Migrations
+
+```
+php artisan migrate
+```
+
+---
+
+### PASSO 7: Testar a API
+
+Após completar todos os passos, você pode testar a API:
+
+1. Registrar um novo usuário (POST /register)
+2. Fazer login (POST /login)
+3. Copiar o token de autenticação
+4. Usar o token em chamadas à API:
+
+```
+Authorization: Bearer <seu_token_aqui>
+```
+
+---
+
+═══════════════════════════════════════════════════════════════════════
+## ESTRUTURA DE RESPOSTA DA API
+═══════════════════════════════════════════════════════════════════════
+
+### GET /api/books (Listar todos os livros)
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "title": "Título do Livro",
+      "isbn": "978-8535-1234",
+      "subject": "Programação",
+      "quantity": 5,
+      "is_critical_stock": false,
+      "is_out_of_stock": false,
+      "created_at": "2024-01-15T10:30:00Z",
+      "updated_at": "2024-01-15T10:30:00Z"
+    }
+  ],
+  "links": {...},
+  "meta": {...}
+}
+```
+
+### GET /api/books/{id} (Obter um livro)
+```json
+{
+  "data": {
+    "id": 1,
+    "title": "Título do Livro",
+    "isbn": "978-8535-1234",
+    "subject": "Programação",
+    "quantity": 5,
+    "is_critical_stock": false,
+    "is_out_of_stock": false,
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-01-15T10:30:00Z"
+  }
+}
+```
+
+### POST /api/books (Criar um novo livro)
+Request:
+```json
+{
+  "title": "Novo Livro",
+  "isbn": "978-8535-1234",
+  "subject": "Programação",
+  "quantity": 10
+}
+```
+
+Response (201 Created):
+```json
+{
+  "data": {
+    "id": 1,
+    "title": "Novo Livro",
+    "isbn": "978-8535-1234",
+    "subject": "Programação",
+    "quantity": 10,
+    "is_critical_stock": false,
+    "is_out_of_stock": false,
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-01-15T10:30:00Z"
+  }
+}
+```
+
+### PUT /api/books/{id} (Atualizar um livro)
+Request:
+```json
+{
+  "title": "Livro Atualizado",
+  "isbn": "978-8535-1234",
+  "subject": "Programação",
+  "quantity": 15
+}
+```
+
+Response (200 OK):
+```json
+{
+  "data": {
+    "id": 1,
+    "title": "Livro Atualizado",
+    "isbn": "978-8535-1234",
+    "subject": "Programação",
+    "quantity": 15,
+    "is_critical_stock": false,
+    "is_out_of_stock": false,
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-01-15T11:45:00Z"
+  }
+}
+```
+
+### DELETE /api/books/{id} (Deletar um livro)
+Response (204 No Content)
+
+### POST /api/movements (Registrar movimento de entrada/saída)
+Request:
+```json
+{
+  "type": "entrada",
+  "book_id": 1,
+  "quantity": 5,
+  "justification": "Compra ao fornecedor"
+}
+```
+
+Response (201 Created):
+```json
+{
+  "message": "Movimento registrado com sucesso.",
+  "data": {
+    "id": 1,
+    "type": "entrada",
+    "book_id": 1,
+    "book": {...},
+    "user_id": 1,
+    "user": {...},
+    "funcionario_id": null,
+    "quantity": 5,
+    "justification": "Compra ao fornecedor",
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-01-15T10:30:00Z"
+  }
+}
+```
+
+### Movimento de Saída com Estoque Insuficiente
+Request:
+```json
+{
+  "type": "saida",
+  "book_id": 1,
+  "quantity": 100,
+  "justification": "Distribuição para professores"
+}
+```
+
+Response (422 Unprocessable Entity):
+```json
+{
+  "message": "Quantidade insuficiente em estoque.",
+  "errors": {
+    "quantity": [
+      "A saída solicitada (100) excede o saldo disponível (5)."
+    ]
+  }
+}
+```
+
+═══════════════════════════════════════════════════════════════════════
+## REGRAS DE NEGÓCIO IMPLEMENTADAS
+═══════════════════════════════════════════════════════════════════════
+
+✅ 1. Saída bloqueada se quantidade > saldo disponível
+   - Retorna HTTP 422 com mensagem de erro clara
+
+✅ 2. Toda saída exige campo 'justification' não nulo
+   - Validação implementada em StoreMovementRequest
+   - Campo é obrigatório se type='saida'
+
+✅ 3. Apenas usuários autenticados alteram estoque
+   - Middleware 'auth:sanctum' protege todas as rotas da API
+   - User ID é automaticamente capturado de Auth::id()
+
+✅ 4. Transação atômica para movimentos
+   - Atualização de quantidade e criação de registro acontecem juntas
+   - Se falhar a criação do registro, a quantidade NÃO é alterada
+
+✅ 5. Nível crítico < 10 unidades
+   - Método isCriticalStock() no modelo Book
+   - Campo is_critical_stock retornado na resposta
+
+✅ 6. Estoque não pode ficar negativo
+   - Quantidade mínima é 0 nas validações
+   - Decrement nunca deixa quantidade negativa (job)
+
+═══════════════════════════════════════════════════════════════════════
+## ARQUIVOS CRIADOS DURANTE ESTA IMPLEMENTAÇÃO
+═══════════════════════════════════════════════════════════════════════
+
+Form Requests:
+✅ app/Http/Requests/StoreBookRequest.php
+✅ app/Http/Requests/UpdateBookRequest.php
+✅ app/Http/Requests/StoreMovementRequest.php
+
+Resources:
+- app/Http/Resources/BookResource.php (criar via setup_api.php)
+- app/Http/Resources/MovementResource.php (criar via setup_api.php)
+
+Controllers:
+- app/Http/Controllers/Api/BookController.php (criar via setup_api.php)
+- app/Http/Controllers/Api/MovementController.php (criar via setup_api.php)
+
+Arquivos de Configuração:
+✅ setup_api.php (executa automaticamente)
+✅ SETUP_ROUTES_API.txt (copiar para routes/api.php)
+✅ SETUP_USER_MODEL.txt (copiar para app/Models/User.php)
+✅ SETUP_CARGO_CONTROLLER_FIX.txt (copiar para app/Http/Controllers/CargoController.php)
+
+═══════════════════════════════════════════════════════════════════════
+## COMANDOS IMPORTANTES
+═══════════════════════════════════════════════════════════════════════
+
+# Executar setup (criar arquivos)
+php setup_api.php
+
+# Instalar Sanctum
+php artisan sanctum:install
+
+# Executar migrations
+php artisan migrate
+
+# Criar token para usuário (para testes)
+php artisan tinker
+> $user = User::find(1);
+> $user->createToken('test-token')->plainTextToken;
+
+# Limpar cache de configuração
+php artisan config:clear
+
+# Verificar rotas da API
+php artisan route:list --path=api
+
+═══════════════════════════════════════════════════════════════════════
+## TROUBLESHOOTING
+═══════════════════════════════════════════════════════════════════════
+
+P: "Class not found" para BookResource?
+R: Execute: php setup_api.php
+
+P: "Token invalid" ao usar a API?
+R: Certifique-se de:
+   1. Sanctum está instalado (php artisan sanctum:install)
+   2. User model tem trait HasApiTokens
+   3. O token é válido e não expirou
+
+P: Movimento não registra corretamente?
+R: Verifique:
+   1. User está autenticado (middleware auth:sanctum)
+   2. Book ID existe
+   3. Para saida: justification está preenchido
+
+P: Erro 422 ao criar livro?
+R: Verifique:
+   1. title não está vazio
+   2. isbn é único
+   3. subject não está vazio
+   4. quantity é um número inteiro >= 0
+
+═══════════════════════════════════════════════════════════════════════
+FIM DO GUIA
+═══════════════════════════════════════════════════════════════════════

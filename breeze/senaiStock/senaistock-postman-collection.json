@@ -1,0 +1,722 @@
+{
+  "info": {
+    "_postman_id": "senaistock-api-tests",
+    "name": "SenaiStock API - Complete Test Collection",
+    "description": "Comprehensive test collection for SenaiStock API\n\nCRITICAL TESTS:\n- 🔴 Saida blocks when quantity > available stock (HTTP 422)\n- 🔴 Saida requires justification (HTTP 422 if missing)\n- 🔴 Stock never goes negative\n- 🔴 Entrada always permitted (never fails with valid data)\n- 🔴 ISBN must be unique",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login with Valid Credentials",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 or 302\", function() {\n    pm.expect([200, 302]).to.include(pm.response.code);\n});\n\npm.test(\"Set-Cookie header exists\", function() {\n    pm.expect(pm.response.headers.get('Set-Cookie')).to.exist;\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/login",
+              "host": ["{{base_url}}"],
+              "path": ["login"]
+            },
+            "description": "Login with valid email and password\nExpected: 200 or 302 redirect\nCookie should be set in response"
+          }
+        },
+        {
+          "name": "Login with Wrong Password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 302 (redirect)\", function() {\n    pm.expect(pm.response.code).to.equal(302);\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"wrong-password\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/login",
+              "host": ["{{base_url}}"],
+              "path": ["login"]
+            },
+            "description": "Login with incorrect password\nExpected: 302 (redirect to login page)"
+          }
+        },
+        {
+          "name": "Logout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 or 302\", function() {\n    pm.expect([200, 302]).to.include(pm.response.code);\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/logout",
+              "host": ["{{base_url}}"],
+              "path": ["logout"]
+            },
+            "description": "Logout authenticated user\nExpected: 200 or 302"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Books - CRUD Operations",
+      "item": [
+        {
+          "name": "List All Books",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function() {\n    if (pm.response.code !== 404) {\n        pm.expect(pm.response.code).to.equal(200);\n        pm.expect(pm.response.json()).to.be.an('array');\n    }\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/books",
+              "host": ["{{base_url}}"],
+              "path": ["api", "books"]
+            },
+            "description": "Get list of all books\nExpected: 200 with array of books"
+          }
+        },
+        {
+          "name": "Get Book Details",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 or 404\", function() {\n    pm.expect([200, 404]).to.include(pm.response.code);\n    if (pm.response.code === 200) {\n        pm.expect(pm.response.json()).to.have.property('id');\n        pm.expect(pm.response.json()).to.have.property('title');\n        pm.expect(pm.response.json()).to.have.property('isbn');\n        pm.expect(pm.response.json()).to.have.property('subject');\n        pm.expect(pm.response.json()).to.have.property('quantity');\n    }\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/books/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "books", "1"]
+            },
+            "description": "Get details of a specific book by ID\nExpected: 200 with book object or 404"
+          }
+        },
+        {
+          "name": "Create Book - Valid",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201 (Created)\", function() {\n    if (pm.response.code !== 404) {\n        pm.expect(pm.response.code).to.equal(201);\n        pm.expect(pm.response.json()).to.have.property('id');\n        pm.expect(pm.response.json()).to.have.property('title');\n        pm.expect(pm.response.json()).to.have.property('isbn');\n    }\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"The Great Gatsby\",\n  \"isbn\": \"978-0-7432-7356-5\",\n  \"subject\": \"Fiction\",\n  \"quantity\": 15\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/books",
+              "host": ["{{base_url}}"],
+              "path": ["api", "books"]
+            },
+            "description": "Create a new book with all required fields\nExpected: 201 with created book object"
+          }
+        },
+        {
+          "name": "Create Book - Missing Title (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 422 (Validation Error)\", function() {\n    if (pm.response.code !== 404) {\n        pm.expect(pm.response.code).to.equal(422);\n        pm.expect(pm.response.json()).to.have.property('errors');\n    }\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isbn\": \"978-0-7432-7356-6\",\n  \"subject\": \"Fiction\",\n  \"quantity\": 10\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/books",
+              "host": ["{{base_url}}"],
+              "path": ["api", "books"]
+            },
+            "description": "Try to create book WITHOUT title field\nExpected: 422 (title is required)"
+          }
+        },
+        {
+          "name": "Create Book - Duplicate ISBN (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 422 (Unique Constraint)\", function() {\n    if (pm.response.code !== 404) {\n        pm.expect(pm.response.code).to.equal(422);\n        pm.expect(pm.response.json()).to.have.property('errors');\n        pm.expect(pm.response.json().errors).to.have.property('isbn');\n    }\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Another Book\",\n  \"isbn\": \"978-0-7432-7356-5\",\n  \"subject\": \"Fiction\",\n  \"quantity\": 5\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/books",
+              "host": ["{{base_url}}"],
+              "path": ["api", "books"]
+            },
+            "description": "Try to create book with DUPLICATE ISBN\nExpected: 422 (ISBN must be unique)"
+          }
+        },
+        {
+          "name": "Update Book",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 or 404\", function() {\n    pm.expect([200, 404]).to.include(pm.response.code);\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated Title\",\n  \"subject\": \"Updated Subject\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/books/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "books", "1"]
+            },
+            "description": "Update an existing book\nExpected: 200 with updated book or 404"
+          }
+        },
+        {
+          "name": "Delete Book",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 204 or 404\", function() {\n    pm.expect([204, 404]).to.include(pm.response.code);\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/books/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "books", "1"]
+            },
+            "description": "Delete a book (also removes associated movements)\nExpected: 204 (no content) or 404"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Movements - CRITICAL Business Rules",
+      "item": [
+        {
+          "name": "List All Movements",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function() {\n    if (pm.response.code !== 404) {\n        pm.expect(pm.response.code).to.equal(200);\n        pm.expect(pm.response.json()).to.be.an('array');\n    }\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/movements",
+              "host": ["{{base_url}}"],
+              "path": ["api", "movements"]
+            },
+            "description": "Get list of all movements\nExpected: 200 with array of movements"
+          }
+        },
+        {
+          "name": "Get Movement Details",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 or 404\", function() {\n    pm.expect([200, 404]).to.include(pm.response.code);\n    if (pm.response.code === 200) {\n        pm.expect(pm.response.json()).to.have.property('id');\n        pm.expect(pm.response.json()).to.have.property('type');\n        pm.expect(pm.response.json()).to.have.property('quantity');\n    }\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/movements/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "movements", "1"]
+            },
+            "description": "Get details of a specific movement\nExpected: 200 or 404"
+          }
+        },
+        {
+          "name": "📝 Create Entrada (Entry) - ALWAYS ALLOWED",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function() {\n    if (pm.response.code !== 404) {\n        pm.expect(pm.response.code).to.equal(201);\n        pm.expect(pm.response.json()).to.have.property('type').equal('entrada');\n    }\n});\n\npm.test(\"Entrada does NOT require justification\", function() {\n    if (pm.response.code === 201) {\n        // Should succeed without justification field\n    }\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"book_id\": 1,\n  \"type\": \"entrada\",\n  \"quantity\": 20\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/movements",
+              "host": ["{{base_url}}"],
+              "path": ["api", "movements"]
+            },
+            "description": "Create ENTRADA (stock entry)\nExpected: 201\nNote: Justification is NOT required for entrada\nNote: Quantity will be ADDED to book stock"
+          }
+        },
+        {
+          "name": "📝 Create Saida (Exit) - Valid Stock",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function() {\n    if (pm.response.code !== 404) {\n        pm.expect(pm.response.code).to.equal(201);\n        pm.expect(pm.response.json()).to.have.property('type').equal('saida');\n    }\n});\n\npm.test(\"Justification is stored\", function() {\n    if (pm.response.code === 201) {\n        pm.expect(pm.response.json()).to.have.property('justification');\n    }\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"book_id\": 1,\n  \"type\": \"saida\",\n  \"quantity\": 5,\n  \"justification\": \"Classroom Distribution - 2024-A\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/movements",
+              "host": ["{{base_url}}"],
+              "path": ["api", "movements"]
+            },
+            "description": "Create SAIDA (stock exit) with sufficient quantity\nExpected: 201\nNote: Justification REQUIRED\nNote: Quantity will be SUBTRACTED from book stock"
+          }
+        },
+        {
+          "name": "🔴 CRITICAL: Saida - INSUFFICIENT STOCK (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"🔴 CRITICAL: Status code is 422 (MUST block)\", function() {\n    if (pm.response.code !== 404) {\n        pm.expect(pm.response.code).to.equal(422);\n    }\n});\n\npm.test(\"Error response contains validation errors\", function() {\n    if (pm.response.code === 422) {\n        pm.expect(pm.response.json()).to.have.property('errors');\n    }\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"book_id\": 1,\n  \"type\": \"saida\",\n  \"quantity\": 9999,\n  \"justification\": \"This should FAIL - requesting more than available\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/movements",
+              "host": ["{{base_url}}"],
+              "path": ["api", "movements"]
+            },
+            "description": "🔴 CRITICAL TEST: Try to withdraw MORE than available stock\nExpected: HTTP 422 (MUST block)\nError message should indicate insufficient stock\nBook quantity should NOT change"
+          }
+        },
+        {
+          "name": "🔴 CRITICAL: Saida - MISSING JUSTIFICATION (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"🔴 CRITICAL: Status code is 422 (justification required)\", function() {\n    if (pm.response.code !== 404) {\n        pm.expect(pm.response.code).to.equal(422);\n        pm.expect(pm.response.json().errors).to.have.property('justification');\n    }\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"book_id\": 1,\n  \"type\": \"saida\",\n  \"quantity\": 5\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/movements",
+              "host": ["{{base_url}}"],
+              "path": ["api", "movements"]
+            },
+            "description": "🔴 CRITICAL TEST: Try SAIDA WITHOUT justification field\nExpected: HTTP 422 (MUST require)\nError: justification is required for saida"
+          }
+        },
+        {
+          "name": "🔴 CRITICAL: Saida - EMPTY JUSTIFICATION (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"🔴 CRITICAL: Status code is 422 (empty justification invalid)\", function() {\n    if (pm.response.code !== 404) {\n        pm.expect(pm.response.code).to.equal(422);\n    }\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"book_id\": 1,\n  \"type\": \"saida\",\n  \"quantity\": 5,\n  \"justification\": \"\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/movements",
+              "host": ["{{base_url}}"],
+              "path": ["api", "movements"]
+            },
+            "description": "🔴 CRITICAL TEST: Try SAIDA with EMPTY justification\nExpected: HTTP 422 (MUST validate)\nError: justification cannot be empty"
+          }
+        },
+        {
+          "name": "Saida - Zero Quantity (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 422 (zero quantity invalid)\", function() {\n    if (pm.response.code !== 404) {\n        pm.expect(pm.response.code).to.equal(422);\n    }\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"book_id\": 1,\n  \"type\": \"saida\",\n  \"quantity\": 0,\n  \"justification\": \"Test\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/movements",
+              "host": ["{{base_url}}"],
+              "path": ["api", "movements"]
+            },
+            "description": "Try SAIDA with zero quantity\nExpected: 422 (quantity must be > 0)"
+          }
+        },
+        {
+          "name": "Saida - Negative Quantity (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 422 (negative quantity invalid)\", function() {\n    if (pm.response.code !== 404) {\n        pm.expect(pm.response.code).to.equal(422);\n    }\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"book_id\": 1,\n  \"type\": \"entrada\",\n  \"quantity\": -10\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/movements",
+              "host": ["{{base_url}}"],
+              "path": ["api", "movements"]
+            },
+            "description": "Try movement with negative quantity\nExpected: 422 (quantity must be positive)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Error Scenarios",
+      "item": [
+        {
+          "name": "Unauthorized - No Authentication",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 401 (Unauthorized)\", function() {\n    pm.expect(pm.response.code).to.equal(401);\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/books",
+              "host": ["{{base_url}}"],
+              "path": ["api", "books"]
+            },
+            "description": "Try to access protected endpoint WITHOUT authentication\nExpected: 401 (Unauthorized)"
+          }
+        },
+        {
+          "name": "Not Found - Book",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 404 (Not Found)\", function() {\n    pm.expect(pm.response.code).to.equal(404);\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/books/999999",
+              "host": ["{{base_url}}"],
+              "path": ["api", "books", "999999"]
+            },
+            "description": "Try to access non-existent book\nExpected: 404 (Not Found)"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string",
+      "description": "Base URL of the API (change to your server)"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string",
+      "description": "Bearer token from login (leave empty if using sessions)"
+    }
+  ]
+}

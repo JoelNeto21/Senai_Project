@@ -1,0 +1,31 @@
+Este arquivo deve estar em app/Http/Resources/BookResource.php
+
+<?php
+
+namespace App\Http\Resources;
+
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+
+class BookResource extends JsonResource
+{
+    /**
+     * Transform the resource into an array.
+     *
+     * @return array<string, mixed>
+     */
+    public function toArray(Request $request): array
+    {
+        return [
+            'id' => $this->id,
+            'title' => $this->title,
+            'isbn' => $this->isbn,
+            'subject' => $this->subject,
+            'quantity' => $this->quantity,
+            'is_critical_stock' => $this->isCriticalStock(),
+            'is_out_of_stock' => $this->isOutOfStock(),
+            'created_at' => $this->created_at,
+            'updated_at' => $this->updated_at,
+        ];
+    }
+}

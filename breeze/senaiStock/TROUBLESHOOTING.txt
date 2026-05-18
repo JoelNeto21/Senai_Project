@@ -1,0 +1,350 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                     TROUBLESHOOTING & FAQ                                   ║
+║                          SenaiStock API                                     ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+## ❌ PROBLEMAS E SOLUÇÕES
+
+═══════════════════════════════════════════════════════════════════════════════
+
+### PROBLEMA 1: "Class 'App\Http\Resources\BookResource' not found"
+
+**Causa:** Os diretórios e arquivos da API não foram criados
+
+**Solução:**
+```bash
+php setup_api.php
+```
+
+Verifique se foram criados:
+- app/Http/Resources/BookResource.php
+- app/Http/Resources/MovementResource.php
+- app/Http/Controllers/Api/BookController.php
+- app/Http/Controllers/Api/MovementController.php
+
+═══════════════════════════════════════════════════════════════════════════════
+
+### PROBLEMA 2: "Unauthenticated" em todas as requisições
+
+**Causa:** Token inválido, expirado ou faltando
+
+**Solução 1 - Verificar token:**
+```bash
+php artisan tinker
+> $user = User::find(1)
+> $token = $user->createToken('test-token')->plainTextToken
+> echo $token
+```
+
+Copie o token completo (sem aspas)
+
+**Solução 2 - Verificar header:**
+Certifique-se de enviar o header corretamente:
+```
+Authorization: Bearer YOUR_FULL_TOKEN_HERE
+```
+
+**Solução 3 - Verificar Sanctum:**
+```bash
+php artisan sanctum:install
+php artisan migrate
+```
+
+**Solução 4 - Verificar User model:**
+Abra app/Models/User.php e certifique-se de ter:
+```php
+use Laravel\Sanctum\HasApiTokens;
+
+class User extends Authenticatable {
+    use HasApiTokens;
+    ...
+}
+```
+
+═══════════════════════════════════════════════════════════════════════════════
+
+### PROBLEMA 3: "The given data was invalid" ao criar livro
+
+**Causa:** Falta de campos obrigatórios ou validação falhou
+
+**Solução:**
+Verifique o JSON:
+```json
+{
+  "title": "Titulo aqui",        ← obrigatório
+  "isbn": "123-456-789",         ← obrigatório e único
+  "subject": "Disciplina",        ← obrigatório
+  "quantity": 10                  ← obrigatório (inteiro >= 0)
+}
+```
+
+Se ainda tiver erro, verifique a resposta detalhada:
+```bash
+curl -X POST http://localhost/api/books \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Test","isbn":"123","subject":"Test","quantity":10}' \
+  -v
+```
+
+═══════════════════════════════════════════════════════════════════════════════
+
+### PROBLEMA 4: "Quantity must be an integer" ao criar movimento
+
+**Causa:** quantity não é um número inteiro
+
+**Solução:**
+```json
+{
+  "type": "entrada",
+  "book_id": 1,
+  "quantity": 5,              ← deve ser inteiro (não "5.5")
+  "justification": "motivo"
+}
+```
+
+═══════════════════════════════════════════════════════════════════════════════
+
+### PROBLEMA 5: "The justification is required for exits" ao fazer saída
+
+**Causa:** Campo justification é obrigatório para saídas
+
+**Solução:**
+Sempre adicione justification em movimentos com type="saida":
+```json
+{
+  "type": "saida",
+  "book_id": 1,
+  "quantity": 2,
+  "justification": "Distribuição para sala 101"  ← obrigatório
+}
+```
+
+Para entrada, justification é opcional:
+```json
+{
+  "type": "entrada",
+  "book_id": 1,
+  "quantity": 5
+}
+```
+
+═══════════════════════════════════════════════════════════════════════════════
+
+### PROBLEMA 6: "Insufficient quantity in stock" ao fazer saída
+
+**Esperado!** Isto é regra de negócio
+
+**Significado:**
+Você tentou remover 100 livros, mas apenas 5 estão em estoque
+
+**Solução:**
+Diminua a quantidade ou faça entrada primeiro:
+```bash
+# Fazer entrada
+curl -X POST http://localhost/api/movements \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"type":"entrada","book_id":1,"quantity":100}'
+
+# Agora saída funciona
+curl -X POST http://localhost/api/movements \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"type":"saida","book_id":1,"quantity":50,"justification":"Motivo"}'
+```
+
+═══════════════════════════════════════════════════════════════════════════════
+
+### PROBLEMA 7: "SQLSTATE[HY000]: General error" ao executar migration
+
+**Causa:** Banco de dados não está conectado ou migration já foi executada
+
+**Solução 1 - Verificar conexão:**
+```bash
+php artisan migrate:status
+```
+
+**Solução 2 - Executar migration:**
+```bash
+php artisan migrate
+```
+
+**Solução 3 - Resetar banco (⚠️ deleta dados):**
+```bash
+php artisan migrate:fresh
+```
+
+**Solução 4 - Verificar .env:**
+Abra .env e verifique:
+```
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3308
+DB_DATABASE=senaiStk
+DB_USERNAME=root
+DB_PASSWORD=
+```
+
+═══════════════════════════════════════════════════════════════════════════════
+
+### PROBLEMA 8: "This ISBN is already registered" ao atualizar livro
+
+**Causa:** Outro livro tem o mesmo ISBN
+
+**Solução:**
+Use um ISBN único ou atualize para o ISBN original:
+```json
+{
+  "title": "Novo Titulo",
+  "isbn": "978-8535-NOVO",    ← ISBN diferente
+  "subject": "Disciplina",
+  "quantity": 15
+}
+```
+
+═══════════════════════════════════════════════════════════════════════════════
+
+### PROBLEMA 9: 404 Not Found em /api/books
+
+**Causa:** Rotas da API não foram carregadas
+
+**Solução:**
+Verifique se routes/api.php existe:
+```bash
+ls routes/api.php
+```
+
+Se não existir, crie:
+```bash
+cat > routes/api.php << 'EOF'
+<?php
+use App\Http\Controllers\Api\BookController;
+use App\Http\Controllers\Api\MovementController;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::apiResource('books', BookController::class);
+    Route::post('movements', [MovementController::class, 'store']);
+});
+EOF
+```
+
+═══════════════════════════════════════════════════════════════════════════════
+
+### PROBLEMA 10: Banco de dados vazio após migrate
+
+**Causa:** Normal, é o comportamento esperado
+
+**Solução:**
+Crie dados de teste:
+```bash
+php artisan tinker
+> User::create(['name' => 'Admin', 'email' => 'admin@test.com', 'password' => Hash::make('senha')])
+> Book::create(['title' => 'Livro', 'isbn' => '123', 'subject' => 'Teste', 'quantity' => 10])
+> exit
+```
+
+═══════════════════════════════════════════════════════════════════════════════
+
+## 📝 LOGS E DEBUGGING
+
+### Ver logs de erro:
+```bash
+tail -f storage/logs/laravel.log
+```
+
+### Modo debug:
+Abra .env e defina:
+```
+APP_DEBUG=true
+```
+
+### Verifique as rotas:
+```bash
+php artisan route:list --path=api
+```
+
+### Teste banco de dados:
+```bash
+php artisan migrate:status
+```
+
+═══════════════════════════════════════════════════════════════════════════════
+
+## 🎯 VERIFICAÇÃO PASSO A PASSO
+
+Se tudo falha, siga esta ordem:
+
+1. ✓ php setup_api.php
+2. ✓ php artisan migrate:status
+3. ✓ php artisan migrate
+4. ✓ php artisan sanctum:install
+5. ✓ php artisan migrate
+6. ✓ php artisan cache:clear
+7. ✓ php artisan config:clear
+8. ✓ php artisan route:clear
+
+Agora teste:
+```bash
+php artisan route:list --path=api
+```
+
+Devem aparecer os endpoints:
+- GET|HEAD /api/books
+- GET|HEAD /api/books/{book}
+- POST /api/books
+- PUT /api/books/{book}
+- DELETE /api/books/{book}
+- POST /api/movements
+
+═══════════════════════════════════════════════════════════════════════════════
+
+## 📞 ÚLTIMA RESORT
+
+Se nada funciona:
+
+1. Crie arquivo: test_api.php na raiz do projeto:
+```php
+<?php
+// Verificar setup_api.php foi executado
+echo "Diretórios criados: " . (file_exists('app/Http/Controllers/Api/BookController.php') ? "SIM" : "NÃO") . "\n";
+echo "Resources criados: " . (file_exists('app/Http/Resources/BookResource.php') ? "SIM" : "NÃO") . "\n";
+echo "Routes criado: " . (file_exists('routes/api.php') ? "SIM" : "NÃO") . "\n";
+echo "User model atualizado: " . (strpos(file_get_contents('app/Models/User.php'), 'HasApiTokens') !== false ? "SIM" : "NÃO") . "\n";
+?>
+```
+
+2. Execute: php test_api.php
+
+3. Verifique quais estão em "NÃO"
+
+4. Reexecute: php setup_api.php
+
+═══════════════════════════════════════════════════════════════════════════════
+
+## ✅ TUDO FUNCIONANDO?
+
+Se consegue fazer isso sem erros, está tudo OK:
+
+```bash
+# 1. Listar livros (vazio é normal)
+curl -H "Authorization: Bearer TOKEN" http://localhost/api/books
+
+# 2. Criar livro
+curl -X POST http://localhost/api/books \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"T","isbn":"1","subject":"S","quantity":1}'
+
+# 3. Registrar movimento
+curl -X POST http://localhost/api/movements \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"type":"entrada","book_id":1,"quantity":5}'
+```
+
+Se os 3 funcionam → 🎉 SUCESSO!
+
+═══════════════════════════════════════════════════════════════════════════════

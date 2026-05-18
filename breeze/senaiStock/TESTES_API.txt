@@ -1,0 +1,474 @@
+═══════════════════════════════════════════════════════════════════════════════════
+   TESTE COMPLETO DA API SENAISTOCK - POSTMAN/CURL
+═══════════════════════════════════════════════════════════════════════════════════
+
+## PASSO 1: Criar um Usuário e Obter Token
+
+### A) Registrar novo usuário (POST)
+URL: http://localhost/register
+Método: POST
+Content-Type: application/json
+
+Body:
+{
+  "name": "João Silva",
+  "email": "joao@example.com",
+  "password": "password123",
+  "password_confirmation": "password123"
+}
+
+### B) Fazer Login (POST)
+URL: http://localhost/login
+Método: POST
+Content-Type: application/json
+
+Body:
+{
+  "email": "joao@example.com",
+  "password": "password123"
+}
+
+Response: Guardará o cookie de sessão
+
+### C) Obter Token via Sanctum (via Tinker)
+```bash
+php artisan tinker
+> $user = User::where('email', 'joao@example.com')->first();
+> $token = $user->createToken('api-token')->plainTextToken;
+> echo $token;
+```
+
+Copie o token retornado.
+
+═══════════════════════════════════════════════════════════════════════════════════
+## PASSO 2: Testar Endpoints de Livros
+═══════════════════════════════════════════════════════════════════════════════════
+
+### Header padrão para todas as requisições:
+Authorization: Bearer YOUR_TOKEN_HERE
+Accept: application/json
+Content-Type: application/json
+
+---
+
+### TESTE 1: Listar Livros (GET)
+URL: http://localhost/api/books
+Método: GET
+
+Headers:
+- Authorization: Bearer {seu_token}
+- Accept: application/json
+
+Expected Response (200 OK):
+{
+  "data": [],
+  "links": {...},
+  "meta": {...}
+}
+
+---
+
+### TESTE 2: Criar um Livro (POST)
+URL: http://localhost/api/books
+Método: POST
+
+Headers:
+- Authorization: Bearer {seu_token}
+- Accept: application/json
+- Content-Type: application/json
+
+Body:
+{
+  "title": "Introdução a Programação",
+  "isbn": "978-8535-1234",
+  "subject": "Programação em Python",
+  "quantity": 20
+}
+
+Expected Response (201 Created):
+{
+  "data": {
+    "id": 1,
+    "title": "Introdução a Programação",
+    "isbn": "978-8535-1234",
+    "subject": "Programação em Python",
+    "quantity": 20,
+    "is_critical_stock": false,
+    "is_out_of_stock": false,
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-01-15T10:30:00Z"
+  }
+}
+
+---
+
+### TESTE 3: Obter um Livro Específico (GET)
+URL: http://localhost/api/books/1
+Método: GET
+
+Headers:
+- Authorization: Bearer {seu_token}
+- Accept: application/json
+
+Expected Response (200 OK):
+{
+  "data": {
+    "id": 1,
+    "title": "Introdução a Programação",
+    "isbn": "978-8535-1234",
+    "subject": "Programação em Python",
+    "quantity": 20,
+    "is_critical_stock": false,
+    "is_out_of_stock": false,
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-01-15T10:30:00Z"
+  }
+}
+
+---
+
+### TESTE 4: Atualizar um Livro (PUT)
+URL: http://localhost/api/books/1
+Método: PUT
+
+Headers:
+- Authorization: Bearer {seu_token}
+- Accept: application/json
+- Content-Type: application/json
+
+Body:
+{
+  "title": "Introdução a Programação Python",
+  "isbn": "978-8535-1234",
+  "subject": "Programação Avançada em Python",
+  "quantity": 25
+}
+
+Expected Response (200 OK):
+{
+  "data": {
+    "id": 1,
+    "title": "Introdução a Programação Python",
+    "isbn": "978-8535-1234",
+    "subject": "Programação Avançada em Python",
+    "quantity": 25,
+    "is_critical_stock": false,
+    "is_out_of_stock": false,
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-01-15T11:45:00Z"
+  }
+}
+
+---
+
+### TESTE 5: Deletar um Livro (DELETE)
+URL: http://localhost/api/books/1
+Método: DELETE
+
+Headers:
+- Authorization: Bearer {seu_token}
+- Accept: application/json
+
+Expected Response (204 No Content)
+(Sem body)
+
+═══════════════════════════════════════════════════════════════════════════════════
+## PASSO 3: Testar Endpoints de Movimentos
+═══════════════════════════════════════════════════════════════════════════════════
+
+### Primeiro, crie um novo livro para usar nos testes:
+
+POST http://localhost/api/books
+{
+  "title": "Livro de Testes",
+  "isbn": "978-8535-5678",
+  "subject": "Testes",
+  "quantity": 10
+}
+
+Anote o ID retornado (ex: id: 2)
+
+---
+
+### TESTE 6: Registrar Entrada de Livros (POST)
+URL: http://localhost/api/movements
+Método: POST
+
+Headers:
+- Authorization: Bearer {seu_token}
+- Accept: application/json
+- Content-Type: application/json
+
+Body:
+{
+  "type": "entrada",
+  "book_id": 2,
+  "quantity": 5,
+  "justification": "Compra do fornecedor XYZ"
+}
+
+Expected Response (201 Created):
+{
+  "message": "Movimento registrado com sucesso.",
+  "data": {
+    "id": 1,
+    "type": "entrada",
+    "book_id": 2,
+    "book": {
+      "id": 2,
+      "title": "Livro de Testes",
+      "isbn": "978-8535-5678",
+      "subject": "Testes",
+      "quantity": 15,
+      "is_critical_stock": true,
+      "is_out_of_stock": false,
+      "created_at": "2024-01-15T10:30:00Z",
+      "updated_at": "2024-01-15T10:31:00Z"
+    },
+    "user_id": 1,
+    "user": {
+      "id": 1,
+      "name": "João Silva",
+      "email": "joao@example.com"
+    },
+    "funcionario_id": null,
+    "quantity": 5,
+    "justification": "Compra do fornecedor XYZ",
+    "created_at": "2024-01-15T10:31:00Z",
+    "updated_at": "2024-01-15T10:31:00Z"
+  }
+}
+
+Note: quantity do livro aumentou de 10 para 15 ✅
+
+---
+
+### TESTE 7: Registrar Saída de Livros (POST)
+URL: http://localhost/api/movements
+Método: POST
+
+Headers:
+- Authorization: Bearer {seu_token}
+- Accept: application/json
+- Content-Type: application/json
+
+Body:
+{
+  "type": "saida",
+  "book_id": 2,
+  "quantity": 3,
+  "justification": "Distribuição para professores da sala 101"
+}
+
+Expected Response (201 Created):
+{
+  "message": "Movimento registrado com sucesso.",
+  "data": {
+    "id": 2,
+    "type": "saida",
+    "book_id": 2,
+    "quantity": 3,
+    "justification": "Distribuição para professores da sala 101",
+    ...
+  }
+}
+
+Note: quantity do livro diminuiu de 15 para 12 ✅
+
+---
+
+### TESTE 8: Tentar Saída com Quantidade Insuficiente (POST) - ERRO ESPERADO
+URL: http://localhost/api/movements
+Método: POST
+
+Headers:
+- Authorization: Bearer {seu_token}
+- Accept: application/json
+- Content-Type: application/json
+
+Body:
+{
+  "type": "saida",
+  "book_id": 2,
+  "quantity": 100,
+  "justification": "Tentar remover mais do que existe"
+}
+
+Expected Response (422 Unprocessable Entity):
+{
+  "message": "Quantidade insuficiente em estoque.",
+  "errors": {
+    "quantity": [
+      "A saída solicitada (100) excede o saldo disponível (12)."
+    ]
+  }
+}
+
+✅ REGRA DE NEGÓCIO TESTADA: Saída bloqueada quando quantidade > saldo
+
+---
+
+### TESTE 9: Tentar Saída sem Justificativa (POST) - ERRO ESPERADO
+URL: http://localhost/api/movements
+Método: POST
+
+Headers:
+- Authorization: Bearer {seu_token}
+- Accept: application/json
+- Content-Type: application/json
+
+Body:
+{
+  "type": "saida",
+  "book_id": 2,
+  "quantity": 2
+}
+
+Expected Response (422 Unprocessable Entity):
+{
+  "message": "The given data was invalid.",
+  "errors": {
+    "justification": [
+      "A justificativa é obrigatória para saídas."
+    ]
+  }
+}
+
+✅ REGRA DE NEGÓCIO TESTADA: Saída requer justificativa
+
+---
+
+### TESTE 10: Entrada sem Justificativa (POST) - PERMITIDO
+URL: http://localhost/api/movements
+Método: POST
+
+Headers:
+- Authorization: Bearer {seu_token}
+- Accept: application/json
+- Content-Type: application/json
+
+Body:
+{
+  "type": "entrada",
+  "book_id": 2,
+  "quantity": 5
+}
+
+Expected Response (201 Created):
+Justificativa não é obrigatória para entrada
+
+✅ REGRA DE NEGÓCIO TESTADA: Justificativa obrigatória apenas para saída
+
+═══════════════════════════════════════════════════════════════════════════════════
+## TESTES DE VALIDAÇÃO
+═══════════════════════════════════════════════════════════════════════════════════
+
+### TESTE 11: Criar Livro com ISBN Duplicado (POST) - ERRO ESPERADO
+URL: http://localhost/api/books
+Método: POST
+
+Body:
+{
+  "title": "Outro Livro",
+  "isbn": "978-8535-5678",
+  "subject": "Testes",
+  "quantity": 10
+}
+
+Expected Response (422 Unprocessable Entity):
+{
+  "message": "The given data was invalid.",
+  "errors": {
+    "isbn": [
+      "Este ISBN já está registrado."
+    ]
+  }
+}
+
+✅ ISBN é único validado
+
+---
+
+### TESTE 12: Criar Livro com Quantidade Negativa (POST) - ERRO ESPERADO
+URL: http://localhost/api/books
+Método: POST
+
+Body:
+{
+  "title": "Livro Inválido",
+  "isbn": "978-8535-9999",
+  "subject": "Testes",
+  "quantity": -5
+}
+
+Expected Response (422 Unprocessable Entity):
+{
+  "message": "The given data was invalid.",
+  "errors": {
+    "quantity": [
+      "A quantidade não pode ser negativa."
+    ]
+  }
+}
+
+✅ Quantidade mínima validada
+
+---
+
+### TESTE 13: Tentar Acessar API sem Token (GET) - ERRO ESPERADO
+URL: http://localhost/api/books
+Método: GET
+Headers: (sem Authorization)
+
+Expected Response (401 Unauthorized):
+{
+  "message": "Unauthenticated."
+}
+
+✅ Sanctum protegendo endpoints
+
+═══════════════════════════════════════════════════════════════════════════════════
+## RESUMO DOS TESTES
+═══════════════════════════════════════════════════════════════════════════════════
+
+✅ TESTES DE LIVROS (5):
+1. Listar livros
+2. Criar livro
+3. Obter livro específico
+4. Atualizar livro
+5. Deletar livro
+
+✅ TESTES DE MOVIMENTOS (5):
+6. Entrada de livros
+7. Saída de livros
+8. Saída bloqueada por quantidade insuficiente
+9. Saída sem justificativa (bloqueada)
+10. Entrada sem justificativa (permitida)
+
+✅ TESTES DE VALIDAÇÃO (3):
+11. ISBN duplicado
+12. Quantidade negativa
+13. Acesso sem autenticação
+
+✅ TOTAL: 13 testes cobrem os requisitos principais
+
+═══════════════════════════════════════════════════════════════════════════════════
+## COMANDOS ÚTEIS COM CURL
+═══════════════════════════════════════════════════════════════════════════════════
+
+Listar livros:
+curl -H "Authorization: Bearer YOUR_TOKEN" http://localhost/api/books
+
+Criar livro:
+curl -X POST http://localhost/api/books \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Novo","isbn":"123","subject":"Test","quantity":5}'
+
+Registrar movimento:
+curl -X POST http://localhost/api/movements \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"type":"entrada","book_id":1,"quantity":5,"justification":"test"}'
+
+═══════════════════════════════════════════════════════════════════════════════════

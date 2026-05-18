@@ -9,6 +9,7 @@ class Cargo extends Model
     protected $guarded = [];
 
     protected $primaryKey = 'Id_cargo';
+    protected $fillable = ['Nome_cargo'];
 
     public function funcionarios()
     {

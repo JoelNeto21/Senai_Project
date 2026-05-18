@@ -1,0 +1,128 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                          QUICK START - 5 MINUTOS                            ║
+║                        SenaiStock API Laravel 11                            ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+## 🎯 OBJETIVO
+Ativar a API SenaiStock com autenticação Sanctum
+
+## ⏱️ TEMPO ESTIMADO
+5 minutos de execução de comandos
+
+═══════════════════════════════════════════════════════════════════════════════
+
+## 📋 CHECKLIST RÁPIDO
+
+Execute NESTA ORDEM:
+
+```bash
+# 1. Entrar no projeto
+cd c:\laragon\www\Senai_Project\breeze\senaiStock
+
+# 2. Criar arquivos da API (ESSENCIAL)
+php setup_api.php
+
+# 3. Instalar Sanctum se não estiver
+php artisan sanctum:install
+
+# 4. Executar migrations (criar tabelas)
+php artisan migrate
+
+# 5. Criar usuário de teste (opcional)
+php artisan tinker
+User::create(['name' => 'Admin', 'email' => 'admin@test.com', 'password' => Hash::make('senha123')])
+exit
+
+# 6. Gerar token
+php artisan tinker
+$user = User::find(1);
+echo $user->createToken('api')->plainTextToken;
+exit
+
+# 7. Testar API
+curl -H "Authorization: Bearer SEU_TOKEN_AQUI" http://localhost/api/books
+```
+
+═══════════════════════════════════════════════════════════════════════════════
+
+## ✅ TESTES RÁPIDOS
+
+### Teste 1: Criar Livro
+```bash
+curl -X POST http://localhost/api/books \
+  -H "Authorization: Bearer SEU_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Test","isbn":"123","subject":"Test","quantity":10}'
+```
+
+Resposta esperada: 201 Created ✅
+
+### Teste 2: Registrar Entrada
+```bash
+curl -X POST http://localhost/api/movements \
+  -H "Authorization: Bearer SEU_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"type":"entrada","book_id":1,"quantity":5,"justification":"Compra"}'
+```
+
+Resposta esperada: 201 Created ✅
+
+### Teste 3: Bloquear Saída Sem Justificativa
+```bash
+curl -X POST http://localhost/api/movements \
+  -H "Authorization: Bearer SEU_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"type":"saida","book_id":1,"quantity":2}'
+```
+
+Resposta esperada: 422 Unprocessable Entity ✅
+
+### Teste 4: Bloquear Saída Com Quantidade Insuficiente
+```bash
+curl -X POST http://localhost/api/movements \
+  -H "Authorization: Bearer SEU_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"type":"saida","book_id":1,"quantity":1000,"justification":"Teste"}'
+```
+
+Resposta esperada: 422 Quantity insufficient ✅
+
+═══════════════════════════════════════════════════════════════════════════════
+
+## 🛠️ ALTERNATIVA: USAR POSTMAN
+
+1. Importar arquivo: POSTMAN_Collection.json
+2. Setar variáveis:
+   - base_url: http://localhost
+   - api_token: seu_token_aqui
+3. Executar requests
+
+═══════════════════════════════════════════════════════════════════════════════
+
+## 📖 DOCUMENTAÇÃO COMPLETA
+
+- GUIA_IMPLEMENTACAO.txt    → Tudo em detalhes
+- TESTES_API.txt            → 13 testes prontos
+- RESUMO_FINAL.txt          → Checklist completo
+- POSTMAN_Collection.json   → Importar no Postman
+
+═══════════════════════════════════════════════════════════════════════════════
+
+## ⚠️ ERROS COMUNS
+
+"Class BookResource not found"
+  → Execute: php setup_api.php
+
+"Unauthenticated"
+  → Verifique token no header Authorization: Bearer {token}
+
+"Quantidade insuficiente" (esperado para saída > saldo)
+  → Comportamento correto!
+
+═══════════════════════════════════════════════════════════════════════════════
+
+## 🎉 SUCESSO
+
+Se conseguiu executar os 4 testes acima, a implementação está 100% funcional!
+
+═══════════════════════════════════════════════════════════════════════════════

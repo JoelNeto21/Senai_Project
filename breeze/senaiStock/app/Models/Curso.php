@@ -3,14 +3,15 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use App\Models\Turma;
 
 class Curso extends Model
 {
     protected $fillable = ["nome_curso"];
 
-    public function turma() : BelongsTo{
-        return $this->belongsTo(Turma::class);
+    public function turmas() : HasMany
+    {
+        return $this->hasMany(Turma::class);
     }
 }

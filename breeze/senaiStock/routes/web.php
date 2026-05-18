@@ -1,20 +1,32 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\EmployeeAuthController;
+use App\Http\Controllers\SenaiStockController;
+use App\Http\Controllers\FuncionarioController;
+use App\Http\Controllers\CargoController;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Http\Request;
 
-Route::get('/', function () {
-    return view('welcome');
+Route::get('/', function (Request $request) {
+    return $request->session()->has('employee.id')
+        ? redirect()->route('senai.dashboard')
+        : redirect()->route('employee.login');
 });
 
-Route::get('/dashboard', function () {
-    return view('dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('/entrada', [EmployeeAuthController::class, 'create'])->name('employee.login');
+Route::post('/entrada', [EmployeeAuthController::class, 'store'])->name('employee.authenticate');
+Route::post('/sair', [EmployeeAuthController::class, 'destroy'])->name('employee.logout');
 
-Route::middleware('auth')->group(function () {
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+Route::middleware('employee.auth')->group(function () {
+    Route::get('/dashboard/{view?}', [SenaiStockController::class, 'index'])
+        ->whereIn('view', ['insights', 'overview', 'teacher_requests', 'purchases', 'history', 'dashboard', 'library', 'receive', 'withdraw'])
+        ->name('senai.dashboard');
+    
+    // Funcionarios routes
+    Route::resource('funcionarios', FuncionarioController::class);
+    
+    // Cargos routes
+    Route::resource('cargos', CargoController::class)->only(['index', 'store', 'destroy']);
 });
 
 require __DIR__.'/auth.php';

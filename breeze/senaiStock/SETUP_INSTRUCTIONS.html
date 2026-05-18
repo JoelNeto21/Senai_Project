@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>INSTRUÇÕES DE EXECUÇÃO - SenaiStock</title>
+</head>
+<body>
+    <h1>Implementação SenaiStock - Instruções Finais</h1>
+    
+    <h2>⚠️ Passos Necessários Para Completar a Implementação:</h2>
+    
+    <p><strong>IMPORTANTE: A ferramenta de PowerShell não está disponível no ambiente. Você precisa executar estes comandos manualmente no seu terminal/CMD:</strong></p>
+    
+    <h3>1️⃣ Criar Diretórios Necessários (executar no CMD/Terminal):</h3>
+    <pre>
+mkdir c:\laragon\www\Senai_Project\breeze\senaiStock\app\Http\Controllers\Api
+mkdir c:\laragon\www\Senai_Project\breeze\senaiStock\app\Http\Resources
+    </pre>
+    
+    <h3>2️⃣ Ou use PHP direto:</h3>
+    <pre>
+cd c:\laragon\www\Senai_Project\breeze\senaiStock
+php bootstrap_dirs.php
+    </pre>
+    
+    <h3>3️⃣ Copiar os arquivos criados para os locais corretos:</h3>
+    
+    <h4>Arquivo 1: BookResource.php</h4>
+    <p>De: app/Http/Requests/INSTRUCTIONS_BookResource.txt</p>
+    <p>Para: app/Http/Resources/BookResource.php</p>
+    
+    <h4>Arquivo 2: MovementResource.php</h4>
+    <p>De: app/Http/Requests/INSTRUCTIONS_MovementResource.txt</p>
+    <p>Para: app/Http/Resources/MovementResource.php</p>
+    
+    <h4>Arquivo 3: BookController.php</h4>
+    <p>De: app/Http/Requests/INSTRUCTIONS_BookController.txt</p>
+    <p>Para: app/Http/Controllers/Api/BookController.php</p>
+    
+    <h4>Arquivo 4: MovementController.php</h4>
+    <p>De: app/Http/Requests/INSTRUCTIONS_MovementController.txt</p>
+    <p>Para: app/Http/Controllers/Api/MovementController.php</p>
+    
+    <h3>4️⃣ Executar Migrations e Seeders:</h3>
+    <pre>
+php artisan migrate
+php artisan db:seed (opcional)
+    </pre>
+    
+    <h3>5️⃣ Configurar Sanctum (se não estiver configurado):</h3>
+    <pre>
+php artisan sanctum:install
+php artisan migrate
+    </pre>
+    
+    <h3>6️⃣ Adicionar rotas em routes/api.php:</h3>
+    <p>Ver arquivo: SETUP_ROUTES_API.txt</p>
+    
+    <h3>7️⃣ Corrigir CargoController.php</h3>
+    <p>Ver arquivo: SETUP_CARGO_CONTROLLER_FIX.txt</p>
+    
+    <h3>8️⃣ Adicionar HasApiTokens ao User Model:</h3>
+    <p>Ver arquivo: SETUP_USER_MODEL.txt</p>
+    
+</body>
+</html>

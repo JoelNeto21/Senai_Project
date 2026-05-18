@@ -13,14 +13,24 @@ class FuncionarioController extends Controller
     {
         // Usamos with('cargo') para carregar o nome do cargo sem sobrecarregar o banco
         $funcionarios = Funcionario::with('cargo')->get();
-        return view('funcionarios.index', compact('funcionarios'));
+        // Temporarily use temp file until directories are properly created
+        $viewPath = 'temp_funcionarios_index';
+        if (view()->exists('funcionarios.index')) {
+            $viewPath = 'funcionarios.index';
+        }
+        return view($viewPath, compact('funcionarios'));
     }
 
     // 2. Mostrar o formulário para criar um novo funcionário
     public function create()
     {
         $cargos = Cargo::all(); // Precisamos disso para o <select> no formulário
-        return view('funcionarios.create', compact('cargos'));
+        // Temporarily use temp file until directories are properly created
+        $viewPath = 'temp_funcionarios_create';
+        if (view()->exists('funcionarios.create')) {
+            $viewPath = 'funcionarios.create';
+        }
+        return view($viewPath, compact('cargos'));
     }
 
     // 3. Salvar o funcionário no banco de dados
@@ -30,7 +40,7 @@ class FuncionarioController extends Controller
         $request->validate([
             'Nome' => 'required|string|max:255',
             'Cpf' => 'required|string|unique:funcionarios,Cpf',
-            'Id_cargo_FK' => 'required|exists:cargos,id', // Verifica se o cargo existe
+            'Id_cargo_FK' => 'required|exists:cargos,Id_cargo', // Verifica se o cargo existe
         ]);
 
         // Cria o registro usando o $guarded = [] que você definiu no Model
@@ -44,7 +54,12 @@ class FuncionarioController extends Controller
     public function edit(Funcionario $funcionario)
     {
         $cargos = Cargo::all();
-        return view('funcionarios.edit', compact('funcionario', 'cargos'));
+        // Temporarily use temp file until directories are properly created
+        $viewPath = 'temp_funcionarios_edit';
+        if (view()->exists('funcionarios.edit')) {
+            $viewPath = 'funcionarios.edit';
+        }
+        return view($viewPath, compact('funcionario', 'cargos'));
     }
 
     // 5. Atualizar os dados
@@ -52,8 +67,8 @@ class FuncionarioController extends Controller
     {
         $request->validate([
             'Nome' => 'required|string|max:255',
-            'Cpf' => 'required|string|unique:funcionarios,Cpf,' . $funcionario->id,
-            'Id_cargo_FK' => 'required|exists:cargos,id',
+            'Cpf' => 'required|string|unique:funcionarios,Cpf,' . $funcionario->Id_funcionario,
+            'Id_cargo_FK' => 'required|exists:cargos,Id_cargo',
         ]);
 
         $funcionario->update($request->all());

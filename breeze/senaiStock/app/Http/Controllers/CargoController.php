@@ -10,24 +10,29 @@ class CargoController extends Controller
 
     public function index(){
     $cargos = Cargo::all(); // Busca todos os cargos no banco
-    return view('cargos.index', compact('cargos'));
+    // Temporarily use temp file until directories are properly created
+    $viewPath = 'temp_cargos_index';
+    if (view()->exists('cargos.index')) {
+        $viewPath = 'cargos.index';
+    }
+    return view($viewPath, compact('cargos'));
 }
 
 public function store(Request $request){
     // Validação simples
     $request->validate([
-        'Nome_cargo' => 'required|unique:cargos|max:255',
+        'Nome_cargo' => 'required|unique:cargos,Nome_cargo|max:255',
     ]);
 
-    Role::create([
-        'Nome_cargo' => $request->nome_cargo,
+    Cargo::create([
+        'Nome_cargo' => $request->Nome_cargo,
     ]);
 
     return redirect()->route('cargos.index')->with('success', 'Cargo criado com sucesso!');
 }
 
-public function destroy(Role $cargo){
+public function destroy(Cargo $cargo){
     $cargo->delete();
-    return redirect()->route('cargos.index');
+    return redirect()->route('cargos.index')->with('success', 'Cargo removido.');
 }
 }

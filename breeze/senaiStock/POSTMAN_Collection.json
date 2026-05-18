@@ -1,0 +1,341 @@
+{
+  "info": {
+    "name": "SenaiStock API Tests",
+    "description": "Collection de testes para a API SenaiStock",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Books",
+      "item": [
+        {
+          "name": "List Books",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has data array', function() {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('data');",
+                  "    pm.expect(jsonData.data).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/books",
+              "host": ["{{base_url}}"],
+              "path": ["api", "books"]
+            }
+          }
+        },
+        {
+          "name": "Create Book",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 201', function() {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.environment.set('book_id', jsonData.data.id);",
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Introdução a Programação\",\n  \"isbn\": \"978-8535-1234\",\n  \"subject\": \"Programação em Python\",\n  \"quantity\": 20\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/books",
+              "host": ["{{base_url}}"],
+              "path": ["api", "books"]
+            }
+          }
+        },
+        {
+          "name": "Get Book by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/books/{{book_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "books", "{{book_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Book",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Introdução a Programação Python\",\n  \"isbn\": \"978-8535-1234\",\n  \"subject\": \"Programação Avançada em Python\",\n  \"quantity\": 25\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/books/{{book_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "books", "{{book_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Book",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/books/{{book_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "books", "{{book_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Movements",
+      "item": [
+        {
+          "name": "Entry Movement",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"entrada\",\n  \"book_id\": {{book_id}},\n  \"quantity\": 5,\n  \"justification\": \"Compra do fornecedor XYZ\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/movements",
+              "host": ["{{base_url}}"],
+              "path": ["api", "movements"]
+            }
+          }
+        },
+        {
+          "name": "Exit Movement",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"saida\",\n  \"book_id\": {{book_id}},\n  \"quantity\": 3,\n  \"justification\": \"Distribuição para professores da sala 101\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/movements",
+              "host": ["{{base_url}}"],
+              "path": ["api", "movements"]
+            }
+          }
+        },
+        {
+          "name": "Exit - Insufficient Stock",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 422', function() {",
+                  "    pm.response.to.have.status(422);",
+                  "});",
+                  "",
+                  "pm.test('Response has error message', function() {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.message).to.include('Quantidade insuficiente');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"saida\",\n  \"book_id\": {{book_id}},\n  \"quantity\": 1000,\n  \"justification\": \"Tentar remover mais do que existe\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/movements",
+              "host": ["{{base_url}}"],
+              "path": ["api", "movements"]
+            }
+          }
+        },
+        {
+          "name": "Exit - Missing Justification",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 422', function() {",
+                  "    pm.response.to.have.status(422);",
+                  "});",
+                  "",
+                  "pm.test('Justification error present', function() {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.errors).to.have.property('justification');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"saida\",\n  \"book_id\": {{book_id}},\n  \"quantity\": 2\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/movements",
+              "host": ["{{base_url}}"],
+              "path": ["api", "movements"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost",
+      "type": "string"
+    },
+    {
+      "key": "api_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "book_id",
+      "value": "1",
+      "type": "string"
+    }
+  ]
+}

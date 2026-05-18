@@ -1,0 +1,351 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\Book;
+use App\Models\Cargo;
+use App\Models\Funcionario;
+use App\Models\Turma;
+use App\Models\Curso;
+use Tests\TestCase;
+
+class SenaiStockViewTest extends TestCase
+{
+    /**
+     * Test that library view renders successfully
+     */
+    public function test_library_view_renders(): void
+    {
+        // Act
+        $response = $this->get(route('senai.dashboard', ['view' => 'library']));
+
+        // Assert
+        $response->assertStatus(200);
+        $response->assertViewHas('activeView', 'library');
+    }
+
+    /**
+     * Test that library view has books data
+     */
+    public function test_library_view_shows_books_data(): void
+    {
+        // Arrange - Books are from config
+        
+        // Act
+        $response = $this->get(route('senai.dashboard', ['view' => 'library']));
+
+        // Assert
+        $response->assertStatus(200);
+        $response->assertViewHas('books');
+        $response->assertViewHas('stockCriticalThreshold', 8);
+    }
+
+    /**
+     * Test that library view shows critical stock threshold
+     */
+    public function test_library_view_critical_threshold_is_8(): void
+    {
+        // Act
+        $response = $this->get(route('senai.dashboard', ['view' => 'library']));
+
+        // Assert
+        $response->assertStatus(200);
+        $response->assertViewHas('stockCriticalThreshold', 8);
+    }
+
+    /**
+     * Test that library view has receive and withdraw modals
+     */
+    public function test_library_view_contains_modals(): void
+    {
+        // Act
+        $response = $this->get(route('senai.dashboard', ['view' => 'library']));
+
+        // Assert
+        $response->assertStatus(200);
+        // Check for modal IDs in the response
+        $response->assertSee('receiveModal', false); // false = don't escape HTML
+        $response->assertSee('withdrawModal', false);
+    }
+
+    /**
+     * Test that receive modal has quantity field
+     */
+    public function test_receive_modal_has_quantity_field(): void
+    {
+        // Act
+        $response = $this->get(route('senai.dashboard', ['view' => 'library']));
+
+        // Assert
+        $response->assertStatus(200);
+        // Check for quantity input
+        $response->assertSee('type="number"', false);
+    }
+
+    /**
+     * Test that withdraw modal has justification field
+     */
+    public function test_withdraw_modal_has_justification_field(): void
+    {
+        // Act
+        $response = $this->get(route('senai.dashboard', ['view' => 'library']));
+
+        // Assert
+        $response->assertStatus(200);
+        // Check for textarea (justification)
+        $response->assertSee('textarea', false);
+    }
+
+    /**
+     * Test that library view contains low stock count
+     */
+    public function test_library_view_has_low_stock_count(): void
+    {
+        // Act
+        $response = $this->get(route('senai.dashboard', ['view' => 'library']));
+
+        // Assert
+        $response->assertStatus(200);
+        $response->assertViewHas('lowStockCount');
+    }
+
+    /**
+     * Test that library view contains total quantity
+     */
+    public function test_library_view_has_total_quantity(): void
+    {
+        // Act
+        $response = $this->get(route('senai.dashboard', ['view' => 'library']));
+
+        // Assert
+        $response->assertStatus(200);
+        $response->assertViewHas('totalQuantity');
+    }
+
+    /**
+     * Test that library view contains cargos data
+     */
+    public function test_library_view_has_cargos_data(): void
+    {
+        // Act
+        $response = $this->get(route('senai.dashboard', ['view' => 'library']));
+
+        // Assert
+        $response->assertStatus(200);
+        $response->assertViewHas('cargos');
+        
+        // Verify cargos count (3 from setUp)
+        $cargos = $response->viewData('cargos');
+        $this->assertCount(3, $cargos);
+    }
+
+    /**
+     * Test that library view contains funcionarios data
+     */
+    public function test_library_view_has_funcionarios_data(): void
+    {
+        // Arrange
+        Funcionario::factory()->create();
+
+        // Act
+        $response = $this->get(route('senai.dashboard', ['view' => 'library']));
+
+        // Assert
+        $response->assertStatus(200);
+        $response->assertViewHas('funcionarios');
+        
+        // Verify at least one funcionario exists
+        $funcionarios = $response->viewData('funcionarios');
+        $this->assertGreaterThan(0, $funcionarios->count());
+    }
+
+    /**
+     * Test that library view contains turmas data
+     */
+    public function test_library_view_has_turmas_data(): void
+    {
+        // Arrange
+        $curso = Curso::factory()->create();
+        $turma = Turma::factory()->create(['curso_id' => $curso->id]);
+
+        // Act
+        $response = $this->get(route('senai.dashboard', ['view' => 'library']));
+
+        // Assert
+        $response->assertStatus(200);
+        $response->assertViewHas('turmas');
+    }
+
+    /**
+     * Test that library view contains employee data
+     */
+    public function test_library_view_has_employee_data(): void
+    {
+        // Act
+        $response = $this->get(route('senai.dashboard', ['view' => 'library']));
+
+        // Assert
+        $response->assertStatus(200);
+        $response->assertViewHas('employee');
+    }
+
+    /**
+     * Test that all valid views render successfully
+     */
+    public function test_all_valid_views_render(): void
+    {
+        $validViews = [
+            'insights',
+            'overview',
+            'teacher_requests',
+            'purchases',
+            'history',
+            'dashboard',
+            'library',
+            'receive',
+            'withdraw',
+        ];
+
+        foreach ($validViews as $view) {
+            $response = $this->get(route('senai.dashboard', ['view' => $view]));
+            $this->assertEquals(200, $response->getStatusCode(), "View $view failed to render");
+            $response->assertViewHas('activeView', $view);
+        }
+    }
+
+    /**
+     * Test that invalid view returns 404
+     */
+    public function test_invalid_view_returns_404(): void
+    {
+        // Act
+        $response = $this->get(route('senai.dashboard', ['view' => 'invalid_view']));
+
+        // Assert
+        $response->assertStatus(404);
+    }
+
+    /**
+     * Test that default view is insights
+     */
+    public function test_default_view_is_insights(): void
+    {
+        // Act
+        $response = $this->get('/dashboard');
+
+        // Assert
+        $response->assertStatus(200);
+        $response->assertViewHas('activeView', 'insights');
+    }
+
+    /**
+     * Test that library view contains books grid structure
+     */
+    public function test_library_view_books_grid_structure(): void
+    {
+        // Act
+        $response = $this->get(route('senai.dashboard', ['view' => 'library']));
+
+        // Assert
+        $response->assertStatus(200);
+        // Check for grid container (3-column layout)
+        $response->assertSee('grid', false);
+    }
+
+    /**
+     * Test that funcionarios are related to cargos
+     */
+    public function test_funcionarios_with_cargo_relationship(): void
+    {
+        // Arrange
+        $cargo = Cargo::first();
+        $funcionario = Funcionario::factory()->create(['Id_cargo_FK' => $cargo->Id_cargo]);
+
+        // Act
+        $response = $this->get(route('senai.dashboard', ['view' => 'library']));
+
+        // Assert
+        $response->assertStatus(200);
+        $funcionarios = $response->viewData('funcionarios');
+        $this->assertTrue($funcionarios->count() >= 1);
+    }
+
+    /**
+     * Test that turmas are related to cursos
+     */
+    public function test_turmas_with_curso_relationship(): void
+    {
+        // Arrange
+        $curso = Curso::factory()->create();
+        $turma = Turma::factory()->create(['curso_id' => $curso->id]);
+
+        // Act
+        $response = $this->get(route('senai.dashboard', ['view' => 'library']));
+
+        // Assert
+        $response->assertStatus(200);
+        $turmas = $response->viewData('turmas');
+        
+        // Check if turmas have curso relationship loaded
+        foreach ($turmas as $t) {
+            $this->assertIsNotNull($t->curso);
+        }
+    }
+
+    /**
+     * Test that books collection is properly formatted
+     */
+    public function test_books_collection_format(): void
+    {
+        // Act
+        $response = $this->get(route('senai.dashboard', ['view' => 'library']));
+
+        // Assert
+        $response->assertStatus(200);
+        $books = $response->viewData('books');
+        
+        // Books should be a collection
+        $this->assertIsObject($books);
+    }
+
+    /**
+     * Test that library view has necessary navigation items
+     */
+    public function test_library_view_has_navigation_items(): void
+    {
+        // Act
+        $response = $this->get(route('senai.dashboard', ['view' => 'library']));
+
+        // Assert
+        $response->assertStatus(200);
+        $response->assertViewHas('navigationItems');
+    }
+
+    /**
+     * Test that library view contains receive button/trigger
+     */
+    public function test_library_view_receive_button_exists(): void
+    {
+        // Act
+        $response = $this->get(route('senai.dashboard', ['view' => 'library']));
+
+        // Assert
+        $response->assertStatus(200);
+        // Check for button text or trigger
+        $response->assertSee('Entrada', false);
+    }
+
+    /**
+     * Test that library view contains withdraw button/trigger
+     */
+    public function test_library_view_withdraw_button_exists(): void
+    {
+        // Act
+        $response = $this->get(route('senai.dashboard', ['view' => 'library']));
+
+        // Assert
+        $response->assertStatus(200);
+        // Check for button text or trigger
+        $response->assertSee('Saída', false);
+    }
+}
