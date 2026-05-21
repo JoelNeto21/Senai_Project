@@ -9,11 +9,18 @@ Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
 
-// API Routes - Protected by Sanctum
+// API Routes - Protected
 Route::middleware('auth:sanctum')->group(function () {
-    // Books API Resource
-    Route::apiResource('books', BookController::class);
-    
+    // Books API
+    Route::get('books', [BookController::class, 'index']);
+    Route::get('books/{id}', [BookController::class, 'show']);
+    Route::post('books', [BookController::class, 'store']);
+    Route::put('books/{id}', [BookController::class, 'update']);
+    Route::delete('books/{id}', [BookController::class, 'destroy']);
+
     // Movements API
     Route::post('movements', [MovementController::class, 'store']);
+    Route::get('movements', [MovementController::class, 'index']);
+    Route::get('movements/{id}', [MovementController::class, 'show']);
 });
+

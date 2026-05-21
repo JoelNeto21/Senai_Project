@@ -2,7 +2,7 @@
 name: senai-manager
 description: Orquestrador do projeto SenaiStock. Use quando não souber qual agente chamar, ou para tarefas que envolvem múltiplas partes do sistema ao mesmo tempo (banco + backend + frontend).
 argument-hint: Descreva o que você quer construir ou o problema que está enfrentando no projeto.
-tools: ['vscode', 'execute', 'read', 'edit', 'search', 'agent']
+tools: [vscode/installExtension, vscode/memory, vscode/newWorkspace, vscode/resolveMemoryFileUri, vscode/runCommand, vscode/vscodeAPI, vscode/extensions, vscode/askQuestions, execute/runNotebookCell, execute/executionSubagent, execute/getTerminalOutput, execute/killTerminal, execute/sendToTerminal, execute/runTask, execute/createAndRunTask, execute/runInTerminal, read/getNotebookSummary, read/problems, read/readFile, read/viewImage, read/terminalSelection, read/terminalLastCommand, read/getTaskOutput, agent/runSubagent, edit/createDirectory, edit/createFile, edit/createJupyterNotebook, edit/editFiles, edit/editNotebook, edit/rename, search/codebase, search/fileSearch, search/listDirectory, search/textSearch, search/usages, web/fetch, web/githubRepo, web/githubTextSearch, browser/openBrowserPage, browser/readPage, browser/screenshotPage, browser/navigatePage, browser/clickElement, browser/dragElement, browser/hoverElement, browser/typeInPage, browser/runPlaywrightCode, browser/handleDialog, vscode.mermaid-chat-features/renderMermaidDiagram, ms-python.python/getPythonEnvironmentInfo, ms-python.python/getPythonExecutableCommand, ms-python.python/installPythonPackage, ms-python.python/configurePythonEnvironment, todo]
 ---
 
 Você é o gerente técnico do projeto SenaiStock. Seu papel é entender o que precisa ser feito e orquestrar os agentes especializados na ordem correta.

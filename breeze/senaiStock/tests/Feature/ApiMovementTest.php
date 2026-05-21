@@ -7,518 +7,543 @@ use App\Models\Movement;
 use App\Models\User;
 use Tests\TestCase;
 
-describe('Movements API', function () {
-    
-    beforeEach(function () {
+class ApiMovementTest extends TestCase
+{
+    private User $user;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
         $this->user = User::factory()->create();
-    });
+    }
 
-    describe('Index - GET /api/movements', function () {
-        
-        it('can list all movements', function () {
-            $book = Book::factory()->create();
-            Movement::factory()->count(3)->create(['book_id' => $book->id]);
+    // ===== INDEX: GET /api/movements =====
 
-            $response = $this->actingAs($this->user)
-                ->getJson('/api/movements');
+    public function test_can_list_all_movements(): void
+    {
+        $book = Book::factory()->create();
+        Movement::factory()->count(3)->create(['book_id' => $book->id]);
 
-            if ($response->status() !== 404) {
-                $response->assertStatus(200);
-                $response->assertJsonIsArray();
-            }
-        });
+        $response = $this->actingAs($this->user)
+            ->getJson('/api/movements');
 
-        it('returns empty array when no movements exist', function () {
-            $response = $this->actingAs($this->user)
-                ->getJson('/api/movements');
+        if ($response->status() !== 404) {
+            $response->assertStatus(200);
+            $response->assertJsonIsArray();
+        }
+    }
 
-            if ($response->status() !== 404) {
-                $response->assertStatus(200);
-            }
-        });
+    public function test_returns_empty_array_when_no_movements_exist(): void
+    {
+        $response = $this->actingAs($this->user)
+            ->getJson('/api/movements');
 
-        it('requires authentication to list movements', function () {
-            $response = $this->getJson('/api/movements');
+        if ($response->status() !== 404) {
+            $response->assertStatus(200);
+        }
+    }
 
-            expect($response->status())->toBeIn([401, 404]);
-        });
+    public function test_requires_authentication_to_list_movements(): void
+    {
+        $response = $this->getJson('/api/movements');
 
-        it('returns movements with correct structure', function () {
-            $book = Book::factory()->create();
-            Movement::factory()->create([
+        $this->assertIn($response->status(), [401, 404]);
+    }
+
+    public function test_returns_movements_with_correct_structure(): void
+    {
+        $book = Book::factory()->create();
+        Movement::factory()->create([
+            'book_id' => $book->id,
+            'user_id' => $this->user->id,
+            'type' => 'entrada',
+            'quantity' => 5,
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->getJson('/api/movements');
+
+        if ($response->status() === 200) {
+            $response->assertJsonStructure([
+                '*' => ['id', 'type', 'book_id', 'quantity', 'justification', 'created_at']
+            ]);
+        }
+    }
+
+    public function test_can_filter_movements_by_type(): void
+    {
+        $book = Book::factory()->create();
+        Movement::factory()->create(['book_id' => $book->id, 'type' => 'entrada', 'quantity' => 5]);
+        Movement::factory()->create(['book_id' => $book->id, 'type' => 'saida', 'quantity' => 2]);
+
+        $response = $this->actingAs($this->user)
+            ->getJson('/api/movements?type=entrada');
+
+        if ($response->status() === 200) {
+            $response->assertJsonIsArray();
+        }
+    }
+
+    // ===== SHOW: GET /api/movements/{id} =====
+
+    public function test_can_retrieve_a_single_movement(): void
+    {
+        $book = Book::factory()->create();
+        $movement = Movement::factory()->create(['book_id' => $book->id]);
+
+        $response = $this->actingAs($this->user)
+            ->getJson("/api/movements/{$movement->id}");
+
+        if ($response->status() !== 404) {
+            $response->assertStatus(200);
+            $response->assertJson([
+                'id' => $movement->id,
+                'type' => $movement->type,
+                'quantity' => $movement->quantity,
+            ]);
+        }
+    }
+
+    public function test_returns_404_for_non_existent_movement(): void
+    {
+        $response = $this->actingAs($this->user)
+            ->getJson('/api/movements/999999');
+
+        $this->assertIn($response->status(), [404, 404]);
+    }
+
+    public function test_requires_authentication_to_view_movement(): void
+    {
+        $book = Book::factory()->create();
+        $movement = Movement::factory()->create(['book_id' => $book->id]);
+
+        $response = $this->getJson("/api/movements/{$movement->id}");
+
+        $this->assertIn($response->status(), [401, 404]);
+    }
+
+    // ===== ENTRADA (Entry) =====
+
+    public function test_can_create_entrada_movement(): void
+    {
+        $book = Book::factory()->create(['quantity' => 5]);
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/api/movements', [
                 'book_id' => $book->id,
-                'user_id' => $this->user->id,
+                'type' => 'entrada',
+                'quantity' => 10,
+            ]);
+
+        if ($response->status() !== 404) {
+            $response->assertStatus(201);
+            $this->assertEquals(15, $book->fresh()->quantity);
+        }
+    }
+
+    public function test_increases_book_quantity_on_entrada(): void
+    {
+        $book = Book::factory()->create(['quantity' => 5]);
+        $initialQuantity = $book->quantity;
+
+        $this->actingAs($this->user)
+            ->postJson('/api/movements', [
+                'book_id' => $book->id,
+                'type' => 'entrada',
+                'quantity' => 7,
+            ]);
+
+        $book->refresh();
+        $this->assertEquals($initialQuantity + 7, $book->quantity);
+    }
+
+    public function test_entrada_does_not_require_justification(): void
+    {
+        $book = Book::factory()->create(['quantity' => 5]);
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/api/movements', [
+                'book_id' => $book->id,
                 'type' => 'entrada',
                 'quantity' => 5,
             ]);
 
-            $response = $this->actingAs($this->user)
-                ->getJson('/api/movements');
+        if ($response->status() !== 404) {
+            $response->assertStatus(201);
+        }
+    }
 
-            if ($response->status() === 200) {
-                $response->assertJsonStructure([
-                    '*' => ['id', 'type', 'book_id', 'quantity', 'justification', 'created_at']
-                ]);
-            }
-        });
+    public function test_creates_movement_record_on_entrada(): void
+    {
+        $book = Book::factory()->create(['quantity' => 0]);
 
-        it('can filter movements by type', function () {
-            $book = Book::factory()->create();
-            Movement::factory()->create(['book_id' => $book->id, 'type' => 'entrada', 'quantity' => 5]);
-            Movement::factory()->create(['book_id' => $book->id, 'type' => 'saida', 'quantity' => 2]);
+        $response = $this->actingAs($this->user)
+            ->postJson('/api/movements', [
+                'book_id' => $book->id,
+                'type' => 'entrada',
+                'quantity' => 20,
+            ]);
 
-            $response = $this->actingAs($this->user)
-                ->getJson('/api/movements?type=entrada');
+        if ($response->status() === 201) {
+            $this->assertDatabaseHas('movements', [
+                'book_id' => $book->id,
+                'type' => 'entrada',
+                'quantity' => 20,
+            ]);
+        }
+    }
 
-            if ($response->status() === 200) {
-                // API should return only entrada movements if filtering is implemented
-                $response->assertJsonIsArray();
-            }
-        });
-    });
+    public function test_entrada_is_always_allowed_with_valid_data(): void
+    {
+        $book = Book::factory()->create(['quantity' => 0]);
 
-    describe('Show - GET /api/movements/{id}', function () {
-        
-        it('can retrieve a single movement', function () {
-            $book = Book::factory()->create();
-            $movement = Movement::factory()->create(['book_id' => $book->id]);
+        $response = $this->actingAs($this->user)
+            ->postJson('/api/movements', [
+                'book_id' => $book->id,
+                'type' => 'entrada',
+                'quantity' => 999999,
+            ]);
 
-            $response = $this->actingAs($this->user)
-                ->getJson("/api/movements/{$movement->id}");
+        if ($response->status() !== 404) {
+            $response->assertStatus(201);
+        }
+    }
 
-            if ($response->status() !== 404) {
-                $response->assertStatus(200);
-                $response->assertJson([
-                    'id' => $movement->id,
-                    'type' => $movement->type,
-                    'quantity' => $movement->quantity,
-                ]);
-            }
-        });
+    // ===== SAIDA (Exit) =====
 
-        it('returns 404 for non-existent movement', function () {
-            $response = $this->actingAs($this->user)
-                ->getJson('/api/movements/999999');
+    public function test_can_create_saida_movement_when_quantity_available(): void
+    {
+        $book = Book::factory()->create(['quantity' => 20]);
 
-            expect($response->status())->toBeIn([404, 404]);
-        });
-
-        it('requires authentication to view movement', function () {
-            $book = Book::factory()->create();
-            $movement = Movement::factory()->create(['book_id' => $book->id]);
-
-            $response = $this->getJson("/api/movements/{$movement->id}");
-
-            expect($response->status())->toBeIn([401, 404]);
-        });
-    });
-
-    describe('Store - Entrada (Entry)', function () {
-        
-        it('can create entrada movement', function () {
-            $book = Book::factory()->create(['quantity' => 5]);
-
-            $response = $this->actingAs($this->user)
-                ->postJson('/api/movements', [
-                    'book_id' => $book->id,
-                    'type' => 'entrada',
-                    'quantity' => 10,
-                ]);
-
-            if ($response->status() !== 404) {
-                $response->assertStatus(201);
-                expect($book->fresh()->quantity)->toBe(15);
-            }
-        });
-
-        it('increases book quantity on entrada', function () {
-            $book = Book::factory()->create(['quantity' => 5]);
-            $initialQuantity = $book->quantity;
-
-            $this->actingAs($this->user)
-                ->postJson('/api/movements', [
-                    'book_id' => $book->id,
-                    'type' => 'entrada',
-                    'quantity' => 7,
-                ]);
-
-            $book->refresh();
-            expect($book->quantity)->toBe($initialQuantity + 7);
-        });
-
-        it('entrada does not require justification', function () {
-            $book = Book::factory()->create(['quantity' => 5]);
-
-            $response = $this->actingAs($this->user)
-                ->postJson('/api/movements', [
-                    'book_id' => $book->id,
-                    'type' => 'entrada',
-                    'quantity' => 5,
-                ]);
-
-            if ($response->status() !== 404) {
-                $response->assertStatus(201);
-            }
-        });
-
-        it('creates movement record on entrada', function () {
-            $book = Book::factory()->create(['quantity' => 0]);
-
-            $response = $this->actingAs($this->user)
-                ->postJson('/api/movements', [
-                    'book_id' => $book->id,
-                    'type' => 'entrada',
-                    'quantity' => 20,
-                ]);
-
-            if ($response->status() === 201) {
-                $this->assertDatabaseHas('movements', [
-                    'book_id' => $book->id,
-                    'type' => 'entrada',
-                    'quantity' => 20,
-                ]);
-            }
-        });
-
-        it('entrada is always allowed with valid data', function () {
-            $book = Book::factory()->create(['quantity' => 0]);
-
-            $response = $this->actingAs($this->user)
-                ->postJson('/api/movements', [
-                    'book_id' => $book->id,
-                    'type' => 'entrada',
-                    'quantity' => 999999,
-                ]);
-
-            if ($response->status() !== 404) {
-                $response->assertStatus(201);
-            }
-        });
-    });
-
-    describe('Store - Saida (Exit)', function () {
-        
-        it('can create saida movement when quantity available', function () {
-            $book = Book::factory()->create(['quantity' => 20]);
-
-            $response = $this->actingAs($this->user)
-                ->postJson('/api/movements', [
-                    'book_id' => $book->id,
-                    'type' => 'saida',
-                    'quantity' => 5,
-                    'justification' => 'Turma A - Aula de Literatura',
-                ]);
-
-            if ($response->status() !== 404) {
-                $response->assertStatus(201);
-                expect($book->fresh()->quantity)->toBe(15);
-            }
-        });
-
-        it('decreases book quantity on saida', function () {
-            $book = Book::factory()->create(['quantity' => 30]);
-            $initialQuantity = $book->quantity;
-
-            $this->actingAs($this->user)
-                ->postJson('/api/movements', [
-                    'book_id' => $book->id,
-                    'type' => 'saida',
-                    'quantity' => 8,
-                    'justification' => 'Turma B',
-                ]);
-
-            $book->refresh();
-            expect($book->quantity)->toBe($initialQuantity - 8);
-        });
-
-        it('CRITICAL: blocks saida when quantity exceeds available stock', function () {
-            $book = Book::factory()->create(['quantity' => 5]);
-
-            $response = $this->actingAs($this->user)
-                ->postJson('/api/movements', [
-                    'book_id' => $book->id,
-                    'type' => 'saida',
-                    'quantity' => 10,
-                    'justification' => 'Turma C',
-                ]);
-
-            if ($response->status() !== 404) {
-                expect($response->status())->toBe(422);
-                expect($book->fresh()->quantity)->toBe(5); // Quantity unchanged
-            }
-        });
-
-        it('CRITICAL: requires justification field for saida', function () {
-            $book = Book::factory()->create(['quantity' => 20]);
-
-            $response = $this->actingAs($this->user)
-                ->postJson('/api/movements', [
-                    'book_id' => $book->id,
-                    'type' => 'saida',
-                    'quantity' => 5,
-                ]);
-
-            if ($response->status() !== 404) {
-                expect($response->status())->toBe(422);
-                expect($book->fresh()->quantity)->toBe(20); // Quantity unchanged
-            }
-        });
-
-        it('CRITICAL: rejects saida with empty justification', function () {
-            $book = Book::factory()->create(['quantity' => 20]);
-
-            $response = $this->actingAs($this->user)
-                ->postJson('/api/movements', [
-                    'book_id' => $book->id,
-                    'type' => 'saida',
-                    'quantity' => 5,
-                    'justification' => '',
-                ]);
-
-            if ($response->status() !== 404) {
-                expect($response->status())->toBe(422);
-            }
-        });
-
-        it('CRITICAL: rejects saida with null justification', function () {
-            $book = Book::factory()->create(['quantity' => 20]);
-
-            $response = $this->actingAs($this->user)
-                ->postJson('/api/movements', [
-                    'book_id' => $book->id,
-                    'type' => 'saida',
-                    'quantity' => 5,
-                    'justification' => null,
-                ]);
-
-            if ($response->status() !== 404) {
-                expect($response->status())->toBe(422);
-            }
-        });
-
-        it('creates movement record on saida', function () {
-            $book = Book::factory()->create(['quantity' => 15]);
-
-            $response = $this->actingAs($this->user)
-                ->postJson('/api/movements', [
-                    'book_id' => $book->id,
-                    'type' => 'saida',
-                    'quantity' => 5,
-                    'justification' => 'Classroom distribution',
-                ]);
-
-            if ($response->status() === 201) {
-                $this->assertDatabaseHas('movements', [
-                    'book_id' => $book->id,
-                    'type' => 'saida',
-                    'quantity' => 5,
-                    'justification' => 'Classroom distribution',
-                ]);
-            }
-        });
-
-        it('saida quantity cannot exceed current stock', function () {
-            $book = Book::factory()->create(['quantity' => 10]);
-
-            $this->actingAs($this->user)
-                ->postJson('/api/movements', [
-                    'book_id' => $book->id,
-                    'type' => 'saida',
-                    'quantity' => 11,
-                    'justification' => 'Test',
-                ]);
-
-            expect($book->fresh()->quantity)->toBe(10);
-        });
-
-        it('stores justification message', function () {
-            $book = Book::factory()->create(['quantity' => 20]);
-            $justification = 'Distribution for Class 2024-A';
-
-            $response = $this->actingAs($this->user)
-                ->postJson('/api/movements', [
-                    'book_id' => $book->id,
-                    'type' => 'saida',
-                    'quantity' => 5,
-                    'justification' => $justification,
-                ]);
-
-            if ($response->status() === 201) {
-                $this->assertDatabaseHas('movements', [
-                    'justification' => $justification,
-                ]);
-            }
-        });
-
-        it('requires authentication for saida', function () {
-            $book = Book::factory()->create(['quantity' => 20]);
-
-            $response = $this->postJson('/api/movements', [
+        $response = $this->actingAs($this->user)
+            ->postJson('/api/movements', [
                 'book_id' => $book->id,
                 'type' => 'saida',
                 'quantity' => 5,
+                'justification' => 'Turma A - Aula de Literatura',
+            ]);
+
+        if ($response->status() !== 404) {
+            $response->assertStatus(201);
+            $this->assertEquals(15, $book->fresh()->quantity);
+        }
+    }
+
+    public function test_decreases_book_quantity_on_saida(): void
+    {
+        $book = Book::factory()->create(['quantity' => 30]);
+        $initialQuantity = $book->quantity;
+
+        $this->actingAs($this->user)
+            ->postJson('/api/movements', [
+                'book_id' => $book->id,
+                'type' => 'saida',
+                'quantity' => 8,
+                'justification' => 'Turma B',
+            ]);
+
+        $book->refresh();
+        $this->assertEquals($initialQuantity - 8, $book->quantity);
+    }
+
+    public function test_critical_blocks_saida_when_quantity_exceeds_available_stock(): void
+    {
+        $book = Book::factory()->create(['quantity' => 5]);
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/api/movements', [
+                'book_id' => $book->id,
+                'type' => 'saida',
+                'quantity' => 10,
+                'justification' => 'Turma C',
+            ]);
+
+        if ($response->status() !== 404) {
+            $response->assertStatus(422);
+            $this->assertEquals(5, $book->fresh()->quantity);
+        }
+    }
+
+    public function test_critical_requires_justification_field_for_saida(): void
+    {
+        $book = Book::factory()->create(['quantity' => 20]);
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/api/movements', [
+                'book_id' => $book->id,
+                'type' => 'saida',
+                'quantity' => 5,
+            ]);
+
+        if ($response->status() !== 404) {
+            $response->assertStatus(422);
+            $this->assertEquals(20, $book->fresh()->quantity);
+        }
+    }
+
+    public function test_critical_rejects_saida_with_empty_justification(): void
+    {
+        $book = Book::factory()->create(['quantity' => 20]);
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/api/movements', [
+                'book_id' => $book->id,
+                'type' => 'saida',
+                'quantity' => 5,
+                'justification' => '',
+            ]);
+
+        if ($response->status() !== 404) {
+            $response->assertStatus(422);
+        }
+    }
+
+    public function test_critical_rejects_saida_with_null_justification(): void
+    {
+        $book = Book::factory()->create(['quantity' => 20]);
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/api/movements', [
+                'book_id' => $book->id,
+                'type' => 'saida',
+                'quantity' => 5,
+                'justification' => null,
+            ]);
+
+        if ($response->status() !== 404) {
+            $response->assertStatus(422);
+        }
+    }
+
+    public function test_creates_movement_record_on_saida(): void
+    {
+        $book = Book::factory()->create(['quantity' => 15]);
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/api/movements', [
+                'book_id' => $book->id,
+                'type' => 'saida',
+                'quantity' => 5,
+                'justification' => 'Classroom distribution',
+            ]);
+
+        if ($response->status() === 201) {
+            $this->assertDatabaseHas('movements', [
+                'book_id' => $book->id,
+                'type' => 'saida',
+                'quantity' => 5,
+                'justification' => 'Classroom distribution',
+            ]);
+        }
+    }
+
+    public function test_saida_quantity_cannot_exceed_current_stock(): void
+    {
+        $book = Book::factory()->create(['quantity' => 10]);
+
+        $this->actingAs($this->user)
+            ->postJson('/api/movements', [
+                'book_id' => $book->id,
+                'type' => 'saida',
+                'quantity' => 11,
                 'justification' => 'Test',
             ]);
 
-            expect($response->status())->toBeIn([401, 404]);
-        });
-    });
+        $this->assertEquals(10, $book->fresh()->quantity);
+    }
 
-    describe('Stock Level Validation', function () {
-        
-        it('never allows stock to go below zero', function () {
-            $book = Book::factory()->create(['quantity' => 5]);
+    public function test_stores_justification_message(): void
+    {
+        $book = Book::factory()->create(['quantity' => 20]);
+        $justification = 'Distribution for Class 2024-A';
 
-            // Try to remove more than available
-            $this->actingAs($this->user)
-                ->postJson('/api/movements', [
-                    'book_id' => $book->id,
-                    'type' => 'saida',
-                    'quantity' => 10,
-                    'justification' => 'Should fail',
-                ]);
+        $response = $this->actingAs($this->user)
+            ->postJson('/api/movements', [
+                'book_id' => $book->id,
+                'type' => 'saida',
+                'quantity' => 5,
+                'justification' => $justification,
+            ]);
 
-            expect($book->fresh()->quantity)->toBeGreaterThanOrEqual(0);
-        });
+        if ($response->status() === 201) {
+            $this->assertDatabaseHas('movements', [
+                'justification' => $justification,
+            ]);
+        }
+    }
 
-        it('correctly sums quantities after multiple operations', function () {
-            $book = Book::factory()->create(['quantity' => 0]);
+    public function test_requires_authentication_for_saida(): void
+    {
+        $book = Book::factory()->create(['quantity' => 20]);
 
-            // Entry: 0 + 10 = 10
-            $this->actingAs($this->user)
-                ->postJson('/api/movements', [
-                    'book_id' => $book->id,
-                    'type' => 'entrada',
-                    'quantity' => 10,
-                ]);
-            expect($book->fresh()->quantity)->toBe(10);
+        $response = $this->postJson('/api/movements', [
+            'book_id' => $book->id,
+            'type' => 'saida',
+            'quantity' => 5,
+            'justification' => 'Test',
+        ]);
 
-            // Entry: 10 + 5 = 15
-            $this->actingAs($this->user)
-                ->postJson('/api/movements', [
-                    'book_id' => $book->id,
-                    'type' => 'entrada',
-                    'quantity' => 5,
-                ]);
-            expect($book->fresh()->quantity)->toBe(15);
+        $this->assertIn($response->status(), [401, 404]);
+    }
 
-            // Exit: 15 - 3 = 12
-            $this->actingAs($this->user)
-                ->postJson('/api/movements', [
-                    'book_id' => $book->id,
-                    'type' => 'saida',
-                    'quantity' => 3,
-                    'justification' => 'Distribution',
-                ]);
-            expect($book->fresh()->quantity)->toBe(12);
-        });
+    // ===== STOCK LEVEL VALIDATION =====
 
-        it('books with zero quantity can receive entries', function () {
-            $book = Book::factory()->create(['quantity' => 0]);
+    public function test_never_allows_stock_to_go_below_zero(): void
+    {
+        $book = Book::factory()->create(['quantity' => 5]);
 
-            $response = $this->actingAs($this->user)
-                ->postJson('/api/movements', [
-                    'book_id' => $book->id,
-                    'type' => 'entrada',
-                    'quantity' => 5,
-                ]);
+        $this->actingAs($this->user)
+            ->postJson('/api/movements', [
+                'book_id' => $book->id,
+                'type' => 'saida',
+                'quantity' => 10,
+                'justification' => 'Should fail',
+            ]);
 
-            if ($response->status() !== 404) {
-                expect($response->status())->toBe(201);
-                expect($book->fresh()->quantity)->toBe(5);
-            }
-        });
-    });
+        $this->assertGreaterThanOrEqual(0, $book->fresh()->quantity);
+    }
 
-    describe('Critical Stock Level', function () {
-        
-        it('can identify books with critical stock', function () {
-            $criticalBook = Book::factory()->create(['quantity' => 5]);
-            $normalBook = Book::factory()->create(['quantity' => 15]);
+    public function test_correctly_sums_quantities_after_multiple_operations(): void
+    {
+        $book = Book::factory()->create(['quantity' => 0]);
 
-            if ($criticalBook->isCriticalStock()) {
-                expect($criticalBook->isCriticalStock())->toBeTrue();
-            }
-            expect($normalBook->isCriticalStock())->toBeFalse();
-        });
+        $this->actingAs($this->user)
+            ->postJson('/api/movements', [
+                'book_id' => $book->id,
+                'type' => 'entrada',
+                'quantity' => 10,
+            ]);
+        $this->assertEquals(10, $book->fresh()->quantity);
 
-        it('can list books with critical stock', function () {
-            Book::factory()->create(['quantity' => 3]);
-            Book::factory()->create(['quantity' => 8]);
-            Book::factory()->create(['quantity' => 25]);
+        $this->actingAs($this->user)
+            ->postJson('/api/movements', [
+                'book_id' => $book->id,
+                'type' => 'entrada',
+                'quantity' => 5,
+            ]);
+        $this->assertEquals(15, $book->fresh()->quantity);
 
-            $criticalBooks = Book::where('quantity', '<', 10)->get();
-            expect($criticalBooks->count())->toBe(2);
-        });
-    });
+        $this->actingAs($this->user)
+            ->postJson('/api/movements', [
+                'book_id' => $book->id,
+                'type' => 'saida',
+                'quantity' => 3,
+                'justification' => 'Distribution',
+            ]);
+        $this->assertEquals(12, $book->fresh()->quantity);
+    }
 
-    describe('Error Handling', function () {
-        
-        it('returns validation error for invalid book_id', function () {
-            $response = $this->actingAs($this->user)
-                ->postJson('/api/movements', [
-                    'book_id' => 999999,
-                    'type' => 'entrada',
-                    'quantity' => 5,
-                ]);
+    public function test_books_with_zero_quantity_can_receive_entries(): void
+    {
+        $book = Book::factory()->create(['quantity' => 0]);
 
-            if ($response->status() !== 404) {
-                expect($response->status())->toBe(422);
-            }
-        });
+        $response = $this->actingAs($this->user)
+            ->postJson('/api/movements', [
+                'book_id' => $book->id,
+                'type' => 'entrada',
+                'quantity' => 5,
+            ]);
 
-        it('returns validation error for invalid type', function () {
-            $book = Book::factory()->create();
+        if ($response->status() !== 404) {
+            $response->assertStatus(201);
+            $this->assertEquals(5, $book->fresh()->quantity);
+        }
+    }
 
-            $response = $this->actingAs($this->user)
-                ->postJson('/api/movements', [
-                    'book_id' => $book->id,
-                    'type' => 'invalid_type',
-                    'quantity' => 5,
-                ]);
+    // ===== CRITICAL STOCK LEVEL =====
 
-            if ($response->status() !== 404) {
-                expect($response->status())->toBe(422);
-            }
-        });
+    public function test_can_identify_books_with_critical_stock(): void
+    {
+        $criticalBook = Book::factory()->create(['quantity' => 5]);
+        $normalBook = Book::factory()->create(['quantity' => 15]);
 
-        it('returns validation error for negative quantity', function () {
-            $book = Book::factory()->create();
+        if (method_exists($criticalBook, 'isCriticalStock')) {
+            $this->assertTrue($criticalBook->isCriticalStock());
+            $this->assertFalse($normalBook->isCriticalStock());
+        }
+    }
 
-            $response = $this->actingAs($this->user)
-                ->postJson('/api/movements', [
-                    'book_id' => $book->id,
-                    'type' => 'entrada',
-                    'quantity' => -5,
-                ]);
+    public function test_can_list_books_with_critical_stock(): void
+    {
+        Book::factory()->create(['quantity' => 3]);
+        Book::factory()->create(['quantity' => 8]);
+        Book::factory()->create(['quantity' => 25]);
 
-            if ($response->status() !== 404) {
-                expect($response->status())->toBe(422);
-            }
-        });
+        $criticalBooks = Book::where('quantity', '<', 10)->get();
+        $this->assertEquals(2, $criticalBooks->count());
+    }
 
-        it('returns validation error for zero quantity', function () {
-            $book = Book::factory()->create();
+    // ===== ERROR HANDLING =====
 
-            $response = $this->actingAs($this->user)
-                ->postJson('/api/movements', [
-                    'book_id' => $book->id,
-                    'type' => 'entrada',
-                    'quantity' => 0,
-                ]);
+    public function test_returns_validation_error_for_invalid_book_id(): void
+    {
+        $response = $this->actingAs($this->user)
+            ->postJson('/api/movements', [
+                'book_id' => 999999,
+                'type' => 'entrada',
+                'quantity' => 5,
+            ]);
 
-            if ($response->status() !== 404) {
-                expect($response->status())->toBe(422);
-            }
-        });
+        if ($response->status() !== 404) {
+            $response->assertStatus(422);
+        }
+    }
 
-        it('returns validation error when missing required fields', function () {
-            $response = $this->actingAs($this->user)
-                ->postJson('/api/movements', []);
+    public function test_returns_validation_error_for_invalid_type(): void
+    {
+        $book = Book::factory()->create();
 
-            if ($response->status() !== 404) {
-                expect($response->status())->toBe(422);
-            }
-        });
-    });
-});
+        $response = $this->actingAs($this->user)
+            ->postJson('/api/movements', [
+                'book_id' => $book->id,
+                'type' => 'invalid_type',
+                'quantity' => 5,
+            ]);
+
+        if ($response->status() !== 404) {
+            $response->assertStatus(422);
+        }
+    }
+
+    public function test_returns_validation_error_for_negative_quantity(): void
+    {
+        $book = Book::factory()->create();
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/api/movements', [
+                'book_id' => $book->id,
+                'type' => 'entrada',
+                'quantity' => -5,
+            ]);
+
+        if ($response->status() !== 404) {
+            $response->assertStatus(422);
+        }
+    }
+
+    public function test_returns_validation_error_for_zero_quantity(): void
+    {
+        $book = Book::factory()->create();
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/api/movements', [
+                'book_id' => $book->id,
+                'type' => 'entrada',
+                'quantity' => 0,
+            ]);
+
+        if ($response->status() !== 404) {
+            $response->assertStatus(422);
+        }
+    }
+
+    public function test_returns_validation_error_when_missing_required_fields(): void
+    {
+        $response = $this->actingAs($this->user)
+            ->postJson('/api/movements', []);
+
+        if ($response->status() !== 404) {
+            $response->assertStatus(422);
+        }
+    }
+}
