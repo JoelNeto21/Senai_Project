@@ -8,11 +8,14 @@ class Cargo extends Model
 {
     protected $guarded = [];
 
-    public function funcionarios() {
-        // Um cargo possui muitos funcionários
-        // O segundo parâmetro é a chave estrangeira que você criou na migration de funcionários
-        return $this->hasMany(Funcionario::class, 'Id_cargo_FK');
+    protected $primaryKey = 'Id_cargo';
+
+    public function funcionarios()
+    {
+        return $this->hasMany(
+            Funcionario::class,
+            'Id_cargo_FK', // FK em funcionarios
+            'Id_cargo'     // PK em cargos
+        );
     }
 }
-
-
