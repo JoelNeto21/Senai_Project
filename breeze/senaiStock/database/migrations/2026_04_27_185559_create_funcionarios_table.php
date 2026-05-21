@@ -9,18 +9,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('funcionarios', function (Blueprint $table) {
-
             $table->id();
-
-            $table->integer('NIF');
-
-            $table->string('Nome');
-
-            $table->string('Cpf', 14);
-
-            $table->foreignId('Id_cargo_FK')->contrained('Cargos');
-
-
+            $table->integer("NIF");
+            $table->string("Nome");
+            $table->string("Cpf", 14);
+            $table->foreignId('Id_cargo_FK')->constrained("cargos");
             $table->timestamps();
         });
     }
