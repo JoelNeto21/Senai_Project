@@ -7,10 +7,10 @@ use App\Http\Controllers\Api\MovementController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
-})->middleware('auth:sanctum');
+})->middleware('auth');
 
 // API Routes - Protected
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware('auth')->group(function () {
     // Books API
     Route::get('books', [BookController::class, 'index']);
     Route::get('books/{id}', [BookController::class, 'show']);

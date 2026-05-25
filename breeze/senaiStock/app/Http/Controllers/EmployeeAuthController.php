@@ -40,7 +40,7 @@ class EmployeeAuthController extends Controller
             'nif' => $funcionario->NIF,
         ]);
 
-        return redirect()->route('senai.dashboard');
+        return redirect()->route('dashboard');
     }
 
     public function destroy(Request $request): RedirectResponse

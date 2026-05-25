@@ -38,13 +38,14 @@ class FuncionarioController extends Controller
     {
         // Validação: Garante que os dados estão corretos antes de salvar
         $request->validate([
+            'NIF' => 'required|integer|unique:funcionarios,NIF',
             'Nome' => 'required|string|max:255',
             'Cpf' => 'required|string|unique:funcionarios,Cpf',
             'Id_cargo_FK' => 'required|exists:cargos,Id_cargo', // Verifica se o cargo existe
         ]);
 
         // Cria o registro usando o $guarded = [] que você definiu no Model
-        Funcionario::create($request->all());
+        Funcionario::create($request->only(['NIF', 'Nome', 'Cpf', 'Id_cargo_FK']));
 
         return redirect()->route('funcionarios.index')
                          ->with('success', 'Funcionário cadastrado com sucesso!');
@@ -66,12 +67,13 @@ class FuncionarioController extends Controller
     public function update(Request $request, Funcionario $funcionario)
     {
         $request->validate([
+            'NIF' => 'required|integer|unique:funcionarios,NIF,' . $funcionario->Id_funcionario . ',Id_funcionario',
             'Nome' => 'required|string|max:255',
-            'Cpf' => 'required|string|unique:funcionarios,Cpf,' . $funcionario->Id_funcionario,
+            'Cpf' => 'required|string|unique:funcionarios,Cpf,' . $funcionario->Id_funcionario . ',Id_funcionario',
             'Id_cargo_FK' => 'required|exists:cargos,Id_cargo',
         ]);
 
-        $funcionario->update($request->all());
+        $funcionario->update($request->only(['NIF', 'Nome', 'Cpf', 'Id_cargo_FK']));
 
         return redirect()->route('funcionarios.index')
                          ->with('success', 'Dados atualizados!');

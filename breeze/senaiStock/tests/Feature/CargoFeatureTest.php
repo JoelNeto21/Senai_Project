@@ -8,6 +8,13 @@ use Tests\TestCase;
 
 class CargoFeatureTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->withEmployeeSession();
+    }
+
     /**
      * Test that index view displays all cargos
      */
@@ -56,7 +63,7 @@ class CargoFeatureTest extends TestCase
         ];
 
         // Act
-        $response = $this->post(route('cargos.store'), $cargoData);
+        $response = $this->postJson(route('cargos.store'), $cargoData);
 
         // Assert
         $response->assertRedirect(route('cargos.index'));
@@ -81,11 +88,11 @@ class CargoFeatureTest extends TestCase
         ];
 
         // Act
-        $response = $this->post(route('cargos.store'), $cargoData);
+        $response = $this->postJson(route('cargos.store'), $cargoData);
 
         // Assert
         $response->assertStatus(422);
-        $response->assertSessionHasErrors('Nome_cargo');
+        $response->assertJsonValidationErrors('Nome_cargo');
     }
 
     /**
@@ -99,11 +106,11 @@ class CargoFeatureTest extends TestCase
         ];
 
         // Act
-        $response = $this->post(route('cargos.store'), $cargoData);
+        $response = $this->postJson(route('cargos.store'), $cargoData);
 
         // Assert
         $response->assertStatus(422);
-        $response->assertSessionHasErrors('Nome_cargo');
+        $response->assertJsonValidationErrors('Nome_cargo');
     }
 
     /**
@@ -117,11 +124,11 @@ class CargoFeatureTest extends TestCase
         ];
 
         // Act
-        $response = $this->post(route('cargos.store'), $cargoData);
+        $response = $this->postJson(route('cargos.store'), $cargoData);
 
         // Assert
         $response->assertStatus(422);
-        $response->assertSessionHasErrors('Nome_cargo');
+        $response->assertJsonValidationErrors('Nome_cargo');
     }
 
     /**
@@ -216,9 +223,10 @@ class CargoFeatureTest extends TestCase
         ];
 
         // Act
-        $response = $this->post(route('cargos.store'), $cargoData);
+        $response = $this->postJson(route('cargos.store'), $cargoData);
 
         // Assert
         $response->assertStatus(422);
+        $response->assertJsonValidationErrors('Nome_cargo');
     }
 }

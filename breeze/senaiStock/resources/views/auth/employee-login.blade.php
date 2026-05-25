@@ -37,7 +37,7 @@
                             id="nif"
                             name="nif"
                             type="number"
-                            value="{{ old('nif') }}"
+                            value="{{ old('nif', 123456) }}"
                             required
                             class="w-full rounded-xl border-0 bg-gray-50 px-4 py-3.5 text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-red-500 outline-none transition-all"
                             placeholder="Ex: 123456"
@@ -50,7 +50,7 @@
                             id="cpf"
                             name="cpf"
                             type="text"
-                            value="{{ old('cpf') }}"
+                            value="{{ old('cpf', '12345678900') }}"
                             required
                             class="w-full rounded-xl border-0 bg-gray-50 px-4 py-3.5 text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-red-500 outline-none transition-all"
                             placeholder="Ex: 000.000.000-00"

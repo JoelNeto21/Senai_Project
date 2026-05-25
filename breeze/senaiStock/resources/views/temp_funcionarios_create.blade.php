@@ -31,6 +31,22 @@
                 </div>
 
                 <div>
+                    <x-input-label for="NIF" value="NIF" />
+                    <x-text-input
+                        id="NIF"
+                        class="mt-2 w-full"
+                        type="number"
+                        name="NIF"
+                        value="{{ old('NIF') }}"
+                        required
+                        placeholder="Ex: 123456"
+                    />
+                    @error('NIF')
+                        <x-input-error :messages="$errors->get('NIF')" class="mt-2" />
+                    @enderror
+                </div>
+
+                <div>
                     <x-input-label for="Cpf" value="CPF" />
                     <x-text-input
                         id="Cpf"

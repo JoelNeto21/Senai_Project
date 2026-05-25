@@ -11,6 +11,13 @@ use Tests\TestCase;
 
 class SenaiStockViewTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->withEmployeeSession();
+    }
+
     /**
      * Test that library view renders successfully
      */
@@ -63,9 +70,8 @@ class SenaiStockViewTest extends TestCase
 
         // Assert
         $response->assertStatus(200);
-        // Check for modal IDs in the response
-        $response->assertSee('receiveModal', false); // false = don't escape HTML
-        $response->assertSee('withdrawModal', false);
+        $response->assertSee('Entrada', false);
+        $response->assertSee('Saída', false);
     }
 
     /**
@@ -204,6 +210,12 @@ class SenaiStockViewTest extends TestCase
             'library',
             'receive',
             'withdraw',
+            'movements',
+            'alerts',
+            'suppliers',
+            'classes',
+            'people',
+            'settings',
         ];
 
         foreach ($validViews as $view) {

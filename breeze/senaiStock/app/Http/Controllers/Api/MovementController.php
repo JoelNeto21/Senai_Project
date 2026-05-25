@@ -3,63 +3,65 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use App\Models\Movement;
 use App\Models\Book;
+use App\Models\Movement;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class MovementController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
         $movements = Movement::with(['book', 'user'])
+            ->when($request->filled('type'), fn ($query) => $query->where('type', $request->string('type')))
             ->latest('created_at')
             ->get();
 
-        return response()->json(['message' => 'Movements retrieved', 'data' => $movements]);
+        return response()->json($movements);
     }
 
-    public function show($id): JsonResponse
+    public function show(int $id): JsonResponse
     {
-        $movement = Movement::with(['book', 'user'])->findOrFail($id);
-        return response()->json(['message' => 'Movement found', 'data' => $movement]);
+        return response()->json(Movement::with(['book', 'user'])->findOrFail($id));
     }
 
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'type' => 'required|in:entrada,saida',
-            'book_id' => 'required|exists:books,id',
-            'quantity' => 'required|integer|min:1',
-            'justification' => 'nullable|string',
-            'funcionario_id' => 'nullable|integer',
+            'type' => ['required', 'in:entrada,saida'],
+            'book_id' => ['required', 'exists:books,id'],
+            'quantity' => ['required', 'integer', 'min:1'],
+            'justification' => ['required_if:type,saida', 'nullable', 'string'],
+            'funcionario_id' => ['nullable', 'integer', 'exists:funcionarios,Id_funcionario'],
         ]);
 
-        $book = Book::findOrFail($data['book_id']);
+        $movement = DB::transaction(function () use ($data, $request) {
+            $book = Book::query()->lockForUpdate()->findOrFail($data['book_id']);
 
-        if ($data['type'] === 'saida') {
-            if (empty($data['justification'])) {
-                return response()->json(['message' => 'Justification is required for saída'], 422);
+            if ($data['type'] === 'saida' && (int) $data['quantity'] > $book->quantity) {
+                throw ValidationException::withMessages([
+                    'quantity' => 'Insufficient stock for saida',
+                ]);
             }
 
-            if ($data['quantity'] > $book->quantity) {
-                return response()->json(['message' => 'Insufficient stock for saída'], 422);
+            if ($data['type'] === 'saida') {
+                $book->decrement('quantity', (int) $data['quantity']);
+            } else {
+                $book->increment('quantity', (int) $data['quantity']);
             }
 
-            $book->decrement('quantity', $data['quantity']);
-        } else {
-            $book->increment('quantity', $data['quantity']);
-        }
+            return Movement::create([
+                'type' => $data['type'],
+                'book_id' => $book->id,
+                'user_id' => $request->user()?->id,
+                'funcionario_id' => $data['funcionario_id'] ?? null,
+                'quantity' => (int) $data['quantity'],
+                'justification' => $data['justification'] ?? null,
+            ]);
+        });
 
-        $movement = Movement::create([
-            'type' => $data['type'],
-            'book_id' => $data['book_id'],
-            'quantity' => $data['quantity'],
-            'justification' => $data['justification'] ?? null,
-            'funcionario_id' => $data['funcionario_id'] ?? null,
-        ]);
-
-        return response()->json(['message' => 'Movement created', 'data' => $movement], 201);
+        return response()->json($movement->fresh(), 201);
     }
 }
-

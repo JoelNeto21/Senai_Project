@@ -5,6 +5,8 @@
     'purchaseCartCount' => 0,
     'withdrawCartCount' => 0,
     'pendingTeacherRequests' => 0,
+    'alertCount' => 0,
+    'supplierCount' => 0,
 ])
 
 @php
@@ -12,6 +14,8 @@
     $employeeCargo = data_get($employee, 'cargo', 'Sem cargo definido');
     $nameParts = collect(preg_split('/\s+/', trim($employeeName)))->filter();
     $employeeInitials = $nameParts->take(2)->map(fn ($part) => mb_substr($part, 0, 1))->implode('');
+    $navigationItems = count($navigationItems) > 0 ? $navigationItems : config('senaistock.navigation_items', []);
+    $groupedNavigationItems = collect($navigationItems)->groupBy(fn ($item) => $item['group'] ?? 'Menu');
 @endphp
 
 <!DOCTYPE html>
@@ -49,7 +53,7 @@
 
             <div x-show="mobileMenuOpen" x-cloak class="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 md:hidden" @click="mobileMenuOpen = false"></div>
 
-            <aside class="fixed md:sticky top-0 left-0 h-screen w-72 bg-white border-r border-gray-200 z-50 transform transition-transform duration-300 ease-out md:translate-x-0" :class="mobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'">
+            <aside class="fixed md:sticky top-0 left-0 h-screen w-72 bg-white border-r border-gray-200 z-50 transform transition-transform duration-300 ease-out md:translate-x-0 flex flex-col" :class="mobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'">
                 <div class="p-8 flex items-center">
                     <div class="w-10 h-10 bg-red-600 rounded-xl flex items-center justify-center mr-3 shadow-sm">
                         <span class="text-white text-sm font-bold">S</span>
@@ -57,33 +61,42 @@
                     <span class="text-xl font-semibold text-gray-900 tracking-tight">SenaiStock</span>
                 </div>
 
-                <div class="px-4 flex-1 overflow-y-auto">
-                    <nav class="space-y-1">
-                        @foreach ($navigationItems as $item)
-                            @php
-                                $isActive = $activeView === $item['id'];
-                                $badgeCount = match ($item['id']) {
-                                    'teacher_requests' => $pendingTeacherRequests,
-                                    'purchases' => $purchaseCartCount,
-                                    'withdraw' => $withdrawCartCount,
-                                    default => 0,
-                                };
-                            @endphp
+                <div class="px-4 flex-1 overflow-y-auto pb-4">
+                    <nav class="space-y-5">
+                        @foreach ($groupedNavigationItems as $group => $items)
+                            <div>
+                                <p class="px-4 pb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-gray-400">{{ $group }}</p>
+                                <div class="space-y-1">
+                                    @foreach ($items as $item)
+                                        @php
+                                            $isActive = $activeView === $item['id'];
+                                            $badgeCount = match ($item['id']) {
+                                                'alerts' => $alertCount,
+                                                'teacher_requests' => $pendingTeacherRequests,
+                                                'purchases' => $purchaseCartCount,
+                                                'withdraw' => $withdrawCartCount,
+                                                default => 0,
+                                            };
+                                            $icon = $item['icon'] ?? strtoupper(mb_substr($item['label'], 0, 1));
+                                        @endphp
 
-                            <a
-                                href="{{ route('senai.dashboard', ['view' => $item['id']]) }}"
-                                class="w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 {{ $isActive ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900' }}"
-                            >
-                                <span class="flex items-center">
-                                    <span class="w-8 h-8 rounded-lg bg-gray-100 text-gray-500 flex items-center justify-center mr-3 text-[11px] font-bold tracking-wide {{ $isActive ? 'bg-red-50 text-red-600' : '' }}">
-                                        {{ strtoupper(mb_substr($item['label'], 0, 1)) }}
-                                    </span>
-                                    {{ $item['label'] }}
-                                </span>
-                                @if ($badgeCount > 0)
-                                    <span class="bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{{ $badgeCount }}</span>
-                                @endif
-                            </a>
+                                        <a
+                                            href="{{ route('senai.dashboard', ['view' => $item['id']]) }}"
+                                            class="w-full flex items-center justify-between px-3 py-2.5 rounded-2xl transition-all duration-200 {{ $isActive ? 'bg-gray-100 text-gray-900 font-semibold' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900' }}"
+                                        >
+                                            <span class="flex items-center min-w-0">
+                                                <span class="w-8 h-8 rounded-xl bg-gray-100 text-gray-500 flex items-center justify-center mr-3 text-[11px] font-bold tracking-wide shrink-0 {{ $isActive ? 'bg-red-50 text-red-600' : '' }}">
+                                                    {{ $icon }}
+                                                </span>
+                                                <span class="truncate text-sm">{{ $item['label'] }}</span>
+                                            </span>
+                                            @if ($badgeCount > 0)
+                                                <span class="ml-2 bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{{ $badgeCount }}</span>
+                                            @endif
+                                        </a>
+                                    @endforeach
+                                </div>
+                            </div>
                         @endforeach
                     </nav>
                 </div>
@@ -111,6 +124,18 @@
             </aside>
 
             <main class="flex-1 p-6 sm:p-10 lg:p-12 max-w-6xl mx-auto w-full overflow-x-hidden">
+                @if (session('status'))
+                    <div class="mb-6 rounded-2xl border border-emerald-100 bg-emerald-50 px-5 py-4 text-sm font-medium text-emerald-800">
+                        {{ session('status') }}
+                    </div>
+                @endif
+
+                @if ($errors->any())
+                    <div class="mb-6 rounded-2xl border border-red-100 bg-red-50 px-5 py-4 text-sm font-medium text-red-700">
+                        {{ $errors->first() }}
+                    </div>
+                @endif
+
                 {{ $slot }}
             </main>
         </div>

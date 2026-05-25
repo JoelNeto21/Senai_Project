@@ -19,4 +19,25 @@ abstract class TestCase extends BaseTestCase
         // Create some default cargos for testing
         Cargo::factory()->createMany(3);
     }
+
+    protected function assertIn(mixed $needle, array $haystack, string $message = ''): void
+    {
+        $this->assertContains($needle, $haystack, $message);
+    }
+
+    protected function assertIsNotNull(mixed $actual, string $message = ''): void
+    {
+        $this->assertNotNull($actual, $message);
+    }
+
+    protected function withEmployeeSession(): static
+    {
+        return $this->withSession([
+            'employee' => [
+                'id' => 1,
+                'name' => 'Almoxarifado Senai',
+                'cargo' => 'Almoxarife',
+            ],
+        ]);
+    }
 }

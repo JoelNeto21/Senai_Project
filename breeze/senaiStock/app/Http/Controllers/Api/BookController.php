@@ -3,57 +3,57 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use App\Models\Book;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class BookController extends Controller
 {
     public function index(): JsonResponse
     {
-        return response()->json(['message' => 'Books retrieved', 'data' => Book::all()]);
+        return response()->json(Book::all());
     }
 
-    public function show($id): JsonResponse
+    public function show(int $id): JsonResponse
     {
-        $book = Book::findOrFail($id);
-        return response()->json(['message' => 'Book found', 'data' => $book]);
+        return response()->json(Book::findOrFail($id));
     }
 
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'title' => 'required|string|max:255',
-            'isbn' => 'nullable|string|max:100',
-            'subject' => 'nullable|string|max:255',
-            'quantity' => 'required|integer|min:0',
+            'title' => ['required', 'string', 'max:255'],
+            'isbn' => ['required', 'string', 'max:100', 'unique:books,isbn'],
+            'subject' => ['required', 'string', 'max:255'],
+            'quantity' => ['nullable', 'integer', 'min:0'],
         ]);
 
-        $book = Book::create($data);
+        $data['quantity'] = $data['quantity'] ?? 0;
 
-        return response()->json(['message' => 'Book created', 'data' => $book], 201);
+        return response()->json(Book::create($data), 201);
     }
 
-    public function update(Request $request, $id): JsonResponse
+    public function update(Request $request, int $id): JsonResponse
     {
         $book = Book::findOrFail($id);
 
         $data = $request->validate([
-            'title' => 'sometimes|required|string|max:255',
-            'isbn' => 'sometimes|nullable|string|max:100',
-            'subject' => 'sometimes|nullable|string|max:255',
-            'quantity' => 'sometimes|required|integer|min:0',
+            'title' => ['sometimes', 'required', 'string', 'max:255'],
+            'isbn' => ['sometimes', 'required', 'string', 'max:100', Rule::unique('books', 'isbn')->ignore($book->id)],
+            'subject' => ['sometimes', 'required', 'string', 'max:255'],
+            'quantity' => ['sometimes', 'required', 'integer', 'min:0'],
         ]);
 
         $book->update($data);
 
-        return response()->json(['message' => 'Book updated', 'data' => $book]);
+        return response()->json($book->fresh());
     }
 
-    public function destroy($id): JsonResponse
+    public function destroy(int $id): JsonResponse
     {
-        $book = Book::findOrFail($id);
-        $book->delete();
-        return response()->json(['message' => 'Book deleted']);
+        Book::findOrFail($id)->delete();
+
+        return response()->json(null, 204);
     }
 }

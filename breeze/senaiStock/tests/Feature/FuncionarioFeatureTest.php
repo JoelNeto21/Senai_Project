@@ -8,6 +8,13 @@ use Tests\TestCase;
 
 class FuncionarioFeatureTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->withEmployeeSession();
+    }
+
     /**
      * Test that index view displays all funcionarios
      */
@@ -50,9 +57,10 @@ class FuncionarioFeatureTest extends TestCase
         $this->assertCount(3, $cargos);
         
         // Check form is present
-        $response->assertSee('name="Nome"');
-        $response->assertSee('name="Cpf"');
-        $response->assertSee('name="Id_cargo_FK"');
+        $response->assertSee('name="NIF"', false);
+        $response->assertSee('name="Nome"', false);
+        $response->assertSee('name="Cpf"', false);
+        $response->assertSee('name="Id_cargo_FK"', false);
     }
 
     /**
@@ -63,6 +71,7 @@ class FuncionarioFeatureTest extends TestCase
         // Arrange
         $cargo = Cargo::first();
         $funcionarioData = [
+            'NIF' => 123456,
             'Nome' => 'João da Silva',
             'Cpf' => '12345678901',
             'Id_cargo_FK' => $cargo->Id_cargo,
@@ -77,6 +86,7 @@ class FuncionarioFeatureTest extends TestCase
         
         // Check database
         $this->assertDatabaseHas('funcionarios', [
+            'NIF' => 123456,
             'Nome' => 'João da Silva',
             'Cpf' => '12345678901',
             'Id_cargo_FK' => $cargo->Id_cargo,
@@ -93,20 +103,21 @@ class FuncionarioFeatureTest extends TestCase
         $cargo = Cargo::first();
         
         $funcionarioData = [
+            'NIF' => 123457,
             'Nome' => 'Maria Silva',
             'Cpf' => '11111111111', // Same CPF
             'Id_cargo_FK' => $cargo->Id_cargo,
         ];
 
         // Act
-        $response = $this->post(route('funcionarios.store'), $funcionarioData);
+        $response = $this->postJson(route('funcionarios.store'), $funcionarioData);
 
         // Assert
         $response->assertStatus(422);
-        $response->assertSessionHasErrors('Cpf');
+        $response->assertJsonValidationErrors('Cpf');
         
         // Check database - should still have only one
-        $this->assertEquals(2, Funcionario::count()); // Original + one attempt
+        $this->assertEquals(1, Funcionario::count());
     }
 
     /**
@@ -117,17 +128,18 @@ class FuncionarioFeatureTest extends TestCase
         // Arrange
         $cargo = Cargo::first();
         $funcionarioData = [
+            'NIF' => 123458,
             'Cpf' => '99999999999',
             'Id_cargo_FK' => $cargo->Id_cargo,
             // Missing Nome
         ];
 
         // Act
-        $response = $this->post(route('funcionarios.store'), $funcionarioData);
+        $response = $this->postJson(route('funcionarios.store'), $funcionarioData);
 
         // Assert
         $response->assertStatus(422);
-        $response->assertSessionHasErrors('Nome');
+        $response->assertJsonValidationErrors('Nome');
     }
 
     /**
@@ -138,17 +150,18 @@ class FuncionarioFeatureTest extends TestCase
         // Arrange
         $cargo = Cargo::first();
         $funcionarioData = [
+            'NIF' => 123459,
             'Nome' => 'João Silva',
             'Id_cargo_FK' => $cargo->Id_cargo,
             // Missing Cpf
         ];
 
         // Act
-        $response = $this->post(route('funcionarios.store'), $funcionarioData);
+        $response = $this->postJson(route('funcionarios.store'), $funcionarioData);
 
         // Assert
         $response->assertStatus(422);
-        $response->assertSessionHasErrors('Cpf');
+        $response->assertJsonValidationErrors('Cpf');
     }
 
     /**
@@ -158,17 +171,18 @@ class FuncionarioFeatureTest extends TestCase
     {
         // Arrange
         $funcionarioData = [
+            'NIF' => 123460,
             'Nome' => 'João Silva',
             'Cpf' => '12345678901',
             'Id_cargo_FK' => 999, // Non-existent cargo ID
         ];
 
         // Act
-        $response = $this->post(route('funcionarios.store'), $funcionarioData);
+        $response = $this->postJson(route('funcionarios.store'), $funcionarioData);
 
         // Assert
         $response->assertStatus(422);
-        $response->assertSessionHasErrors('Id_cargo_FK');
+        $response->assertJsonValidationErrors('Id_cargo_FK');
     }
 
     /**
@@ -202,6 +216,7 @@ class FuncionarioFeatureTest extends TestCase
         $newCargo = Cargo::factory()->create();
         
         $updateData = [
+            'NIF' => 223456,
             'Nome' => 'Nome Atualizado',
             'Cpf' => '55555555555',
             'Id_cargo_FK' => $newCargo->Id_cargo,
@@ -217,6 +232,7 @@ class FuncionarioFeatureTest extends TestCase
         // Check database
         $this->assertDatabaseHas('funcionarios', [
             'Id_funcionario' => $funcionario->Id_funcionario,
+            'NIF' => 223456,
             'Nome' => 'Nome Atualizado',
             'Cpf' => '55555555555',
             'Id_cargo_FK' => $newCargo->Id_cargo,
@@ -233,13 +249,14 @@ class FuncionarioFeatureTest extends TestCase
         $originalCpf = $funcionario->Cpf;
         
         $updateData = [
+            'NIF' => $funcionario->NIF,
             'Nome' => 'Nome Novo',
             'Cpf' => $originalCpf, // Same CPF
             'Id_cargo_FK' => $funcionario->Id_cargo_FK,
         ];
 
         // Act
-        $response = $this->put(route('funcionarios.update', $funcionario), $updateData);
+        $response = $this->putJson(route('funcionarios.update', $funcionario), $updateData);
 
         // Assert
         $response->assertRedirect(route('funcionarios.index'));
@@ -259,17 +276,18 @@ class FuncionarioFeatureTest extends TestCase
         $funcionario2 = Funcionario::factory()->create(['Cpf' => '22222222222']);
         
         $updateData = [
+            'NIF' => $funcionario2->NIF,
             'Nome' => 'Updated Name',
             'Cpf' => '11111111111', // CPF from funcionario1
             'Id_cargo_FK' => $funcionario2->Id_cargo_FK,
         ];
 
         // Act
-        $response = $this->put(route('funcionarios.update', $funcionario2), $updateData);
+        $response = $this->putJson(route('funcionarios.update', $funcionario2), $updateData);
 
         // Assert
         $response->assertStatus(422);
-        $response->assertSessionHasErrors('Cpf');
+        $response->assertJsonValidationErrors('Cpf');
     }
 
     /**
@@ -301,6 +319,7 @@ class FuncionarioFeatureTest extends TestCase
     {
         // Arrange
         $this->post(route('funcionarios.store'), [
+            'NIF' => 323456,
             'Nome' => 'Test Funcionario',
             'Cpf' => '33333333333',
             'Id_cargo_FK' => Cargo::first()->Id_cargo,
