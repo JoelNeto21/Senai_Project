@@ -54,6 +54,11 @@ Route::middleware('employee.auth')->group(function () {
     
     // Cargos routes
     Route::resource('cargos', CargoController::class)->only(['index', 'store', 'destroy']);
+
+    Route::prefix('api')->group(function () {
+        Route::post('books/{book}/receive', [SenaiStockController::class, 'receiveViaApi']);
+        Route::post('books/{book}/withdraw', [SenaiStockController::class, 'withdrawViaApi']);
+    });
 });
 
 Route::middleware('auth')->group(function () {

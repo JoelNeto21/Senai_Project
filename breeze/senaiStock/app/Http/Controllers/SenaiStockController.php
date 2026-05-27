@@ -10,6 +10,7 @@ use App\Models\PurchaseOrder;
 use App\Models\Supplier;
 use App\Models\TeacherRequest;
 use App\Models\Turma;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -124,6 +125,60 @@ class SenaiStockController extends Controller
         });
 
         return back()->with('status', "{$data['quantity']} unidade(s) recebidas para {$book->title}.");
+    }
+
+    public function receiveViaApi(Request $request, Book $book): JsonResponse
+    {
+        $data = $request->validate([
+            'quantity' => ['required', 'integer', 'min:1'],
+            'notes' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        DB::transaction(function () use ($book, $data, $request): void {
+            $book->increment('quantity', (int) $data['quantity']);
+
+            Movement::create([
+                'type' => 'entrada',
+                'book_id' => $book->id,
+                'funcionario_id' => $request->session()->get('employee.id'),
+                'quantity' => (int) $data['quantity'],
+                'justification' => $data['notes'] ?: 'Recebimento de material existente.',
+            ]);
+        });
+
+        return response()->json([
+            'message' => "{$data['quantity']} unidade(s) recebidas para {$book->title}.",
+        ]);
+    }
+
+    public function withdrawViaApi(Request $request, Book $book): JsonResponse
+    {
+        $data = $request->validate([
+            'quantity' => ['required', 'integer', 'min:1'],
+            'justification' => ['required', 'string', 'max:1000'],
+        ]);
+
+        DB::transaction(function () use ($book, $data, $request): void {
+            if ((int) $data['quantity'] > $book->quantity) {
+                throw ValidationException::withMessages([
+                    'quantity' => "Saldo insuficiente para {$book->title}. Disponível: {$book->quantity}.",
+                ]);
+            }
+
+            $book->decrement('quantity', (int) $data['quantity']);
+
+            Movement::create([
+                'type' => 'saida',
+                'book_id' => $book->id,
+                'funcionario_id' => $request->session()->get('employee.id'),
+                'quantity' => (int) $data['quantity'],
+                'justification' => $data['justification'],
+            ]);
+        });
+
+        return response()->json([
+            'message' => "{$data['quantity']} unidade(s) retiradas do estoque de {$book->title}.",
+        ]);
     }
 
     public function storeNewMaterial(Request $request): RedirectResponse
