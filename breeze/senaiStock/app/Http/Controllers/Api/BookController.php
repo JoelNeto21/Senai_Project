@@ -26,10 +26,16 @@ class BookController extends Controller
             'title' => ['required', 'string', 'max:255'],
             'isbn' => ['required', 'string', 'max:100', 'unique:books,isbn'],
             'subject' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string', 'max:1200'],
             'quantity' => ['nullable', 'integer', 'min:0'],
+            'minimum_stock' => ['nullable', 'integer', 'min:1'],
+            'location' => ['nullable', 'string', 'max:255'],
+            'status' => ['nullable', 'in:ativo,inativo'],
         ]);
 
         $data['quantity'] = $data['quantity'] ?? 0;
+        $data['minimum_stock'] = $data['minimum_stock'] ?? config('senaistock.low_stock_threshold', 8);
+        $data['status'] = $data['status'] ?? 'ativo';
 
         return response()->json(Book::create($data), 201);
     }
@@ -42,7 +48,11 @@ class BookController extends Controller
             'title' => ['sometimes', 'required', 'string', 'max:255'],
             'isbn' => ['sometimes', 'required', 'string', 'max:100', Rule::unique('books', 'isbn')->ignore($book->id)],
             'subject' => ['sometimes', 'required', 'string', 'max:255'],
+            'description' => ['sometimes', 'nullable', 'string', 'max:1200'],
             'quantity' => ['sometimes', 'required', 'integer', 'min:0'],
+            'minimum_stock' => ['sometimes', 'required', 'integer', 'min:1'],
+            'location' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'status' => ['sometimes', 'required', 'in:ativo,inativo'],
         ]);
 
         $book->update($data);

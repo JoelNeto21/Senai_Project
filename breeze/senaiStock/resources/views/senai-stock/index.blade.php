@@ -41,8 +41,10 @@
                 return $monthNames[(int) $date->format('n')] . ' de ' . $date->format('Y');
             });
 
-        $pendingRequests = $teacherRequests->where('status', 'pendente');
-        $processedRequests = $teacherRequests->where('status', '!=', 'pendente');
+        $activeRequestStatuses = ['pendente', 'aprovado', 'separado', 'compra'];
+        $pendingRequests = $teacherRequests->whereIn('status', $activeRequestStatuses);
+        $processedRequests = $teacherRequests->whereNotIn('status', $activeRequestStatuses);
+        $unreadNotifications = $notifications->whereNull('read_at');
         $greeting = 'Boa noite';
         $hour = now()->hour;
         if ($hour >= 5 && $hour < 12) {
@@ -272,6 +274,7 @@
         <div class="animate-in fade-in duration-500">
             <div class="mb-8">
                 <h1 class="text-3xl font-semibold tracking-tight text-gray-900">Pedidos de Professores</h1>
+                <a href="{{ route('teacher-requests.create') }}" target="_blank" class="mt-4 inline-flex rounded-xl border border-red-100 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-100">Abrir area publica do professor</a>
                 <p class="text-gray-500 mt-1 text-base">Solicitações ligadas ao acervo e à separação manual do material.</p>
             </div>
 
@@ -279,7 +282,7 @@
                 <summary class="cursor-pointer list-none flex items-center justify-between gap-4">
                     <div>
                         <h2 class="text-lg font-semibold text-gray-900">Registrar pedido manualmente</h2>
-                        <p class="text-sm text-gray-500 mt-1">Use enquanto a tela publica dos professores ainda nao existe.</p>
+                        <p class="text-sm text-gray-500 mt-1">Use para registrar uma solicitação recebida presencialmente, por telefone ou por e-mail.</p>
                     </div>
                     <span class="text-sm font-semibold text-red-600">Novo pedido</span>
                 </summary>
@@ -296,6 +299,10 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-900 mb-2">Turma</label>
                         <input type="text" name="class_name" required class="w-full rounded-xl border border-gray-100 bg-gray-50 px-4 py-3.5 text-sm focus:ring-2 focus:ring-red-500 outline-none" placeholder="Ex: MEC-2A">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-900 mb-2">Curso</label>
+                        <input type="text" name="course_name" class="w-full rounded-xl border border-gray-100 bg-gray-50 px-4 py-3.5 text-sm focus:ring-2 focus:ring-red-500 outline-none" placeholder="Ex: Mecatronica">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-900 mb-2">Prazo desejado</label>
@@ -331,7 +338,8 @@
                             <div class="p-5 lg:col-span-3 border-b lg:border-b-0 lg:border-r border-gray-100 bg-gray-50/30">
                                 <p class="font-semibold text-gray-900">{{ $request['teacher'] }}</p>
                                 <p class="text-xs text-gray-500 mt-1">{{ $request['subject'] }}</p>
-                                <p class="text-[11px] text-gray-400 mt-4">#{{ $request['id'] }} • {{ $request['date'] }} às {{ $request['time'] }}</p>
+                                <p class="text-xs text-gray-500 mt-1">{{ $request['course'] ?? 'Curso nao informado' }}</p>
+                                <p class="text-[11px] text-gray-400 mt-4">{{ $request['protocol'] ?? '#' . $request['id'] }} - {{ $request['date'] }} as {{ $request['time'] }}</p>
                             </div>
                             <div class="p-5 lg:col-span-6">
                                 <h3 class="font-semibold text-gray-900 text-lg mb-2">{{ $request['title'] }}</h3>
@@ -340,7 +348,13 @@
                                     $requestAvailable = (int) ($request['available'] ?? 0);
                                 @endphp
                                 <p class="text-sm text-gray-600">Quantidade solicitada: <span class="font-semibold text-gray-900">{{ $request['qty'] }} un</span></p>
+                                @if (!empty($request['notes']) || !empty($request['lastMessage']))
+                                    <p class="mt-3 text-sm text-gray-500">{{ $request['lastMessage'] ?? $request['notes'] }}</p>
+                                @endif
                                 <div class="mt-4 flex flex-wrap items-center gap-2">
+                                    <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-bold uppercase bg-gray-100 text-gray-600 border border-gray-200">
+                                        {{ $request['status'] }}
+                                    </span>
                                     <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-bold {{ $requestMissing === 0 ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-amber-50 text-amber-700 border border-amber-100' }}">
                                         {{ $requestMissing === 0 ? 'Disponivel' : 'Faltam ' . $requestMissing }}
                                     </span>
@@ -348,18 +362,54 @@
                                 </div>
                             </div>
                             <div class="p-5 lg:col-span-3 flex flex-col gap-3 justify-center bg-gray-50/40">
-                                <a href="mailto:{{ $request['email'] }}?subject=Sobre o pedido de material didatico: {{ $request['title'] }}" class="text-sm font-medium text-gray-600 hover:text-gray-900 bg-white border border-gray-200 px-4 py-2.5 rounded-xl text-center">E-mail</a>
-                                @if ($requestMissing === 0)
-                                    <form method="POST" action="{{ route('stock.teacher-requests.fulfill', $request['id']) }}">
+                                @if (!empty($request['protocol']))
+                                    <a href="{{ route('teacher-requests.show', $request['protocol']) }}" target="_blank" class="text-sm font-medium text-gray-600 hover:text-gray-900 bg-white border border-gray-200 px-4 py-2.5 rounded-xl text-center">Ver protocolo</a>
+                                @endif
+                                @if ($request['status'] === 'pendente')
+                                    <form method="POST" action="{{ route('stock.teacher-requests.approve', $request['id']) }}">
                                         @csrf
-                                        <button type="submit" class="w-full text-sm font-medium bg-emerald-600 text-white px-4 py-2.5 rounded-xl hover:bg-emerald-700">Separar Estoque</button>
+                                        <input type="hidden" name="message" value="Pedido aprovado. O almoxarifado iniciara a separacao do material.">
+                                        <button type="submit" class="w-full text-sm font-medium bg-gray-900 text-white px-4 py-2.5 rounded-xl hover:bg-gray-800">Aprovar</button>
                                     </form>
+                                @endif
+                                @if ($requestMissing === 0)
+                                    @if ($request['status'] === 'separado')
+                                        <form method="POST" action="{{ route('stock.teacher-requests.fulfill', $request['id']) }}">
+                                            @csrf
+                                            <button type="submit" class="w-full text-sm font-medium bg-emerald-600 text-white px-4 py-2.5 rounded-xl hover:bg-emerald-700">Atender e baixar</button>
+                                        </form>
+                                    @elseif (in_array($request['status'], ['aprovado', 'compra'], true))
+                                        <form method="POST" action="{{ route('stock.teacher-requests.notify', $request['id']) }}">
+                                            @csrf
+                                            <input type="hidden" name="status" value="separado">
+                                            <input type="hidden" name="message" value="Material separado e disponivel para retirada.">
+                                            <button type="submit" class="w-full text-sm font-medium bg-emerald-600 text-white px-4 py-2.5 rounded-xl hover:bg-emerald-700">Separar e notificar</button>
+                                        </form>
+                                    @endif
                                 @else
                                     <form method="POST" action="{{ route('stock.teacher-requests.purchase', $request['id']) }}">
                                         @csrf
                                         <button type="submit" class="w-full text-sm font-medium bg-amber-500 text-white px-4 py-2.5 rounded-xl hover:bg-amber-600">Comprar Faltante</button>
                                     </form>
                                 @endif
+                                <details class="rounded-xl border border-gray-200 bg-white p-3">
+                                    <summary class="cursor-pointer text-center text-xs font-bold uppercase tracking-wide text-gray-500">Responder</summary>
+                                    <form method="POST" action="{{ route('stock.teacher-requests.notify', $request['id']) }}" class="mt-3 space-y-2">
+                                        @csrf
+                                        <textarea name="message" rows="3" required class="w-full rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 text-xs focus:ring-2 focus:ring-red-500 outline-none" placeholder="Mensagem para o professor"></textarea>
+                                        <select name="status" class="w-full rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 text-xs focus:ring-2 focus:ring-red-500 outline-none">
+                                            <option value="">Manter status</option>
+                                            <option value="separado">Separado</option>
+                                            <option value="compra">Em compra</option>
+                                        </select>
+                                        <button type="submit" class="w-full rounded-xl bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700">Enviar</button>
+                                    </form>
+                                    <form method="POST" action="{{ route('stock.teacher-requests.reject', $request['id']) }}" class="mt-2">
+                                        @csrf
+                                        <input type="hidden" name="message" value="Pedido rejeitado pelo almoxarifado. Entre em contato para mais detalhes.">
+                                        <button type="submit" class="w-full rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100">Rejeitar</button>
+                                    </form>
+                                </details>
                             </div>
                         </div>
                     </div>
@@ -391,7 +441,7 @@
                                     <td class="px-6 py-4 border-r border-gray-50 text-gray-700">{{ $request['title'] }}</td>
                                     <td class="px-6 py-4 border-r border-gray-50 text-center font-semibold text-gray-700">{{ $request['qty'] }}</td>
                                     <td class="px-6 py-4 border-r border-gray-50 text-center">
-                                        <span class="text-[10px] uppercase font-bold px-2 py-1 rounded border bg-emerald-50 text-emerald-600 border-emerald-200">Atendido</span>
+                                        <span class="text-[10px] uppercase font-bold px-2 py-1 rounded border bg-emerald-50 text-emerald-600 border-emerald-200">{{ $request['status'] }}</span>
                                     </td>
                                     <td class="px-6 py-4 text-gray-500 font-mono text-xs">{{ $request['date'] }} {{ $request['time'] }}</td>
                                 </tr>
@@ -798,6 +848,17 @@
                         <input type="number" name="quantity" min="1" required class="w-full rounded-xl border border-gray-100 bg-gray-50 px-4 py-4 text-gray-900 focus:ring-2 focus:ring-red-500 outline-none" placeholder="Ex: 100">
                     </div>
 
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-900 mb-2">Estoque minimo</label>
+                            <input type="number" name="minimum_stock" min="1" value="{{ $stockCriticalThreshold }}" class="w-full rounded-xl border border-gray-100 bg-gray-50 px-4 py-3.5 text-gray-900 focus:ring-2 focus:ring-red-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-900 mb-2">Localizacao fisica</label>
+                            <input type="text" name="location" class="w-full rounded-xl border border-gray-100 bg-gray-50 px-4 py-3.5 text-gray-900 focus:ring-2 focus:ring-red-500 outline-none" placeholder="Ex: Prateleira B2">
+                        </div>
+                    </div>
+
                     <button type="submit" class="w-full rounded-xl bg-emerald-600 px-4 py-4 font-medium text-white hover:bg-emerald-700 transition-colors">Cadastrar e Receber Estoque</button>
                 </form>
             </div>
@@ -1156,6 +1217,50 @@
                         </tbody>
                     </table>
                 </div>
+            </div>
+        </div>
+    @elseif ($activeView === 'notifications')
+        <div class="animate-in fade-in duration-500">
+            <div class="mb-8">
+                <h1 class="text-3xl font-semibold tracking-tight text-gray-900">Notificacoes</h1>
+                <p class="text-gray-500 mt-1 text-base">Eventos internos gerados por pedidos, estoque critico e compras.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm">
+                    <p class="text-sm text-gray-500 font-medium">Nao lidas</p>
+                    <p class="mt-2 text-4xl font-semibold text-gray-900">{{ $unreadNotifications->count() }}</p>
+                </div>
+                <div class="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm">
+                    <p class="text-sm text-gray-500 font-medium">Pedidos</p>
+                    <p class="mt-2 text-4xl font-semibold text-gray-900">{{ $notifications->where('type', 'teacher_request')->count() }}</p>
+                </div>
+                <a href="{{ route('teacher-requests.create') }}" target="_blank" class="bg-red-50 rounded-3xl border border-red-100 p-6 hover:bg-red-100/60 transition">
+                    <p class="text-sm text-red-700 font-medium">Area publica</p>
+                    <p class="mt-2 text-xl font-semibold text-red-700">Solicitar livros</p>
+                </a>
+            </div>
+
+            <div class="space-y-4">
+                @forelse ($notifications as $notification)
+                    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col md:flex-row md:items-center gap-4">
+                        <div class="flex-1">
+                            <div class="mb-2 flex flex-wrap items-center gap-2">
+                                <span class="inline-flex rounded-full px-3 py-1 text-[11px] font-bold uppercase {{ $notification->severity === 'warning' ? 'bg-amber-50 text-amber-700 border border-amber-100' : ($notification->severity === 'critical' ? 'bg-red-50 text-red-700 border border-red-100' : 'bg-gray-50 text-gray-600 border border-gray-100') }}">
+                                    {{ $notification->type }}
+                                </span>
+                                <h2 class="font-semibold text-gray-900">{{ $notification->title }}</h2>
+                            </div>
+                            <p class="text-sm text-gray-500">{{ $notification->body }}</p>
+                            <p class="mt-2 text-xs text-gray-400">{{ $notification->created_at->format('d/m/Y H:i') }}</p>
+                        </div>
+                        @if ($notification->action_url)
+                            <a href="{{ $notification->action_url }}" class="rounded-xl bg-gray-900 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-gray-800">Abrir</a>
+                        @endif
+                    </div>
+                @empty
+                    <div class="bg-white rounded-3xl border border-gray-100 p-10 text-center text-gray-500">Nenhuma notificacao registrada.</div>
+                @endforelse
             </div>
         </div>
     @elseif ($activeView === 'settings')

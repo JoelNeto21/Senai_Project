@@ -14,11 +14,16 @@ class Book extends Model
         'title',
         'isbn',
         'subject',
+        'description',
         'quantity',
+        'minimum_stock',
+        'location',
+        'status',
     ];
 
     protected $casts = [
         'quantity' => 'integer',
+        'minimum_stock' => 'integer',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -36,7 +41,7 @@ class Book extends Model
      */
     public function isCriticalStock(): bool
     {
-        return $this->quantity < 10;
+        return $this->quantity < ($this->minimum_stock ?? 10);
     }
 
     /**
@@ -45,5 +50,10 @@ class Book extends Model
     public function isOutOfStock(): bool
     {
         return $this->quantity <= 0;
+    }
+
+    public function isActive(): bool
+    {
+        return $this->status === 'ativo';
     }
 }

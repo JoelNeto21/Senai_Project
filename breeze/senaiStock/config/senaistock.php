@@ -6,6 +6,7 @@ return [
     'navigation_items' => [
         ['id' => 'insights', 'label' => 'Insights', 'icon' => 'I', 'group' => 'Operação'],
         ['id' => 'alerts', 'label' => 'Alertas', 'icon' => '!', 'group' => 'Operação'],
+        ['id' => 'notifications', 'label' => 'Notificacoes', 'icon' => 'N', 'group' => 'Operação'],
         ['id' => 'teacher_requests', 'label' => 'Pedidos', 'icon' => 'P', 'group' => 'Operação'],
         ['id' => 'receive', 'label' => 'Recebimento', 'icon' => '+', 'group' => 'Operação'],
         ['id' => 'withdraw', 'label' => 'Retirada', 'icon' => '-', 'group' => 'Operação'],
@@ -15,7 +16,7 @@ return [
         ['id' => 'library', 'label' => 'Acervo', 'icon' => 'A', 'group' => 'Gestão'],
         ['id' => 'purchases', 'label' => 'Compras', 'icon' => 'C', 'group' => 'Gestão'],
         ['id' => 'history', 'label' => 'Histórico', 'icon' => 'H', 'group' => 'Gestão'],
-        ['id' => 'suppliers', 'label' => 'Fornecedores', 'icon' => 'F', 'group' => 'Administração'],
+        ['id' => 'suppliers', 'label' => 'Fornecedores', 'icon' => 'F', 'group' => 'Gestão'],
         ['id' => 'classes', 'label' => 'Turmas', 'icon' => 'T', 'group' => 'Administração'],
         ['id' => 'people', 'label' => 'Equipe', 'icon' => 'E', 'group' => 'Administração'],
         ['id' => 'settings', 'label' => 'Configurações', 'icon' => 'S', 'group' => 'Administração'],

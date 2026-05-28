@@ -13,7 +13,7 @@ class FuncionarioFactory extends Factory
     public function definition(): array
     {
         return [
-            'NIF' => $this->faker->unique()->numerify('##########'),
+            'NIF' => $this->faker->unique()->numberBetween(100000, 999999),
             'Nome' => $this->faker->name(),
             'Cpf' => $this->faker->unique()->numerify('###########'),
             'Id_cargo_FK' => Cargo::factory(),

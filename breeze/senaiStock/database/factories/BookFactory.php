@@ -32,7 +32,11 @@ class BookFactory extends Factory
                 'Music',
                 'Education',
             ]),
+            'description' => $this->faker->sentence(12),
             'quantity' => $this->faker->numberBetween(0, 50),
+            'minimum_stock' => 10,
+            'location' => 'Prateleira ' . $this->faker->bothify('??-##'),
+            'status' => 'ativo',
         ];
     }
 
