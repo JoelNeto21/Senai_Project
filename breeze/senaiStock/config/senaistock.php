@@ -16,10 +16,8 @@ return [
         ['id' => 'library', 'label' => 'Acervo', 'icon' => 'A', 'group' => 'Gestão'],
         ['id' => 'purchases', 'label' => 'Compras', 'icon' => 'C', 'group' => 'Gestão'],
         ['id' => 'history', 'label' => 'Histórico', 'icon' => 'H', 'group' => 'Gestão'],
-        ['id' => 'suppliers', 'label' => 'Fornecedores', 'icon' => 'F', 'group' => 'Gestão'],
         ['id' => 'classes', 'label' => 'Turmas', 'icon' => 'T', 'group' => 'Administração'],
         ['id' => 'people', 'label' => 'Equipe', 'icon' => 'E', 'group' => 'Administração'],
-        ['id' => 'settings', 'label' => 'Configurações', 'icon' => 'S', 'group' => 'Administração'],
     ],
 
     'books' => [

@@ -32,7 +32,7 @@ Route::middleware('employee.auth')->group(function () {
         ->name('dashboard');
 
     Route::get('/dashboard/{view}', [SenaiStockController::class, 'index'])
-        ->whereIn('view', ['insights', 'overview', 'teacher_requests', 'purchases', 'history', 'dashboard', 'library', 'receive', 'withdraw', 'movements', 'alerts', 'notifications', 'suppliers', 'classes', 'people', 'settings'])
+        ->whereIn('view', ['insights', 'overview', 'teacher_requests', 'purchases', 'history', 'dashboard', 'library', 'receive', 'withdraw', 'movements', 'alerts', 'notifications', 'classes', 'people'])
         ->name('senai.dashboard');
 
     Route::post('/estoque/livros/{book}/receber', [SenaiStockController::class, 'receiveExisting'])
@@ -44,34 +44,35 @@ Route::middleware('employee.auth')->group(function () {
     Route::post('/estoque/pedidos-professores/{teacherRequest}/separar', [SenaiStockController::class, 'fulfillTeacherRequest'])
         ->name('stock.teacher-requests.fulfill');
     Route::post('/estoque/pedidos-professores/{teacherRequest}/aprovar', [SenaiStockController::class, 'approveTeacherRequest'])
+        ->middleware('employee.role:administrador')
         ->name('stock.teacher-requests.approve');
     Route::post('/estoque/pedidos-professores/{teacherRequest}/rejeitar', [SenaiStockController::class, 'rejectTeacherRequest'])
+        ->middleware('employee.role:administrador')
         ->name('stock.teacher-requests.reject');
     Route::post('/estoque/pedidos-professores/{teacherRequest}/notificar', [SenaiStockController::class, 'notifyTeacherRequest'])
         ->name('stock.teacher-requests.notify');
     Route::post('/estoque/pedidos-professores/{teacherRequest}/comprar', [SenaiStockController::class, 'addTeacherRequestToPurchase'])
+        ->middleware('employee.role:administrador')
         ->name('stock.teacher-requests.purchase');
     Route::post('/estoque/pedidos-professores', [SenaiStockController::class, 'storeTeacherRequest'])
         ->name('stock.teacher-requests.store');
     Route::post('/estoque/compras/gerar', [SenaiStockController::class, 'generatePurchaseOrder'])
+        ->middleware('employee.role:administrador')
         ->name('stock.purchases.generate');
     Route::post('/estoque/compras/{purchaseOrder}/entregar', [SenaiStockController::class, 'markPurchaseOrderDelivered'])
+        ->middleware('employee.role:administrador')
         ->name('stock.purchases.deliver');
     Route::post('/estoque/alertas/livros/{book}/comprar', [SenaiStockController::class, 'addCriticalBookToCart'])
         ->name('stock.alerts.purchase');
-    Route::post('/estoque/fornecedores', [SenaiStockController::class, 'storeSupplier'])
-        ->name('stock.suppliers.store');
-    Route::patch('/estoque/fornecedores/{supplier}/status', [SenaiStockController::class, 'updateSupplierStatus'])
-        ->name('stock.suppliers.status');
-    
-    // Funcionarios routes
+
+    // Funcionarios routes (Administrador only)
     Route::resource('funcionarios', FuncionarioController::class)
-        ->middleware('employee.role:administrador,coordenador');
-    
-    // Cargos routes
+        ->middleware('employee.role:administrador');
+
+    // Cargos routes (Administrador only)
     Route::resource('cargos', CargoController::class)
         ->only(['index', 'store', 'destroy'])
-        ->middleware('employee.role:administrador,coordenador');
+        ->middleware('employee.role:administrador');
 });
 
 Route::middleware('auth')->group(function () {
@@ -81,10 +82,34 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::get('/teste', function (){
-    return view('dashboard');
+    return view('senai-stock.index', [
+        'activeView' => 'insights',
+        'navigationItems' => [],
+        'employee' => [],
+        'books' => collect(),
+        'purchaseOrders' => collect(),
+        'purchaseCart' => collect(),
+        'teacherRequests' => collect(),
+        'turmas' => collect(),
+        'cargos' => collect(),
+        'funcionarios' => collect(),
+        'suppliers' => collect(),
+        'notifications' => collect(),
+        'movements' => collect(),
+        'alerts' => collect(),
+        'stockCriticalThreshold' => 8,
+        'lowStockCount' => 0,
+        'totalQuantity' => 0,
+        'pendingTeacherRequests' => 0,
+        'purchaseCartCount' => 0,
+        'withdrawCartCount' => 0,
+        'alertCount' => 0,
+        'supplierCount' => 0,
+    ]);
 });
 
-Route::resource('requisicoes', RequisicaoController::class);
+Route::resource('requisicoes', RequisicaoController::class)
+    ->middleware('employee.auth');
 
 require __DIR__.'/auth.php';
 

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Funcionario;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -19,18 +20,17 @@ class EmployeeAuthController extends Controller
     {
         $credentials = $request->validate([
             'nif' => ['required', 'integer'],
-            'cpf' => ['required', 'string', 'max:14'],
+            'password' => ['required', 'string', 'min:4'],
         ]);
 
         $funcionario = Funcionario::with('cargo')
             ->where('NIF', $credentials['nif'])
-            ->where('Cpf', $credentials['cpf'])
             ->first();
 
-        if (!$funcionario) {
+        if (!$funcionario || !Hash::check($credentials['password'], $funcionario->password ?? '')) {
             return back()->withErrors([
                 'nif' => 'Credenciais inválidas para o funcionário informado.',
-            ])->withInput($request->only('nif', 'cpf'));
+            ])->withInput($request->only('nif'));
         }
 
         $roleKey = $this->roleKey($funcionario->cargo?->Nome_cargo);

@@ -17,6 +17,7 @@ class FuncionarioSeeder extends Seeder
         Funcionario::firstOrCreate(['NIF' => 111111], [
             'Nome' => 'Administrador Senai',
             'Cpf' => '11111111111',
+            'password' => 'senai123',
             'Id_cargo_FK' => $administrador->Id_cargo,
         ]);
 
@@ -24,6 +25,7 @@ class FuncionarioSeeder extends Seeder
             'NIF' => 123456,
             'Nome' => 'Almoxarifado Senai',
             'Cpf' => '12345678900',
+            'password' => 'senai123',
             'Id_cargo_FK' => $almoxarife->Id_cargo,
         ]);
 
@@ -31,6 +33,7 @@ class FuncionarioSeeder extends Seeder
             'NIF' => 654321,
             'Nome' => 'Professor Teste',
             'Cpf' => '98765432100',
+            'password' => 'senai123',
             'Id_cargo_FK' => $professor->Id_cargo,
         ]);
     }

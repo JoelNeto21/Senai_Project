@@ -17,10 +17,8 @@ return new class extends Migration
             $table->foreignId('book_id')
                 ->constrained('books')
                 ->cascadeOnDelete();
-            $table->foreignId('user_id')
-                ->nullable()
-                ->constrained('users')
-                ->nullOnDelete();
+            $table->unsignedBigInteger('user_id')
+                ->nullable();
             $table->unsignedBigInteger('funcionario_id')
                 ->nullable();
             $table->unsignedInteger('quantity');

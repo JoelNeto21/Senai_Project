@@ -27,8 +27,11 @@ return new class extends Migration
             $table->string('nome_turma');
 
             // FK Funcionário
-            $table->foreignId('funcionario_id')
-                ->constrained('funcionarios')
+            $table->unsignedBigInteger('funcionario_id');
+
+            $table->foreign('funcionario_id')
+                ->references('Id_funcionario')
+                ->on('funcionarios')
                 ->onDelete('cascade');
 
             $table->timestamps();

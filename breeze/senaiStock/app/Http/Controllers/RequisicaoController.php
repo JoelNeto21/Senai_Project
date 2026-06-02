@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Requisicao;
 use Illuminate\Http\Request;
 
 class RequisicaoController extends Controller

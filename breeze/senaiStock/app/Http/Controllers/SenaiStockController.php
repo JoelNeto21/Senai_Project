@@ -40,7 +40,6 @@ class SenaiStockController extends Controller
         'suppliers',
         'classes',
         'people',
-        'settings',
     ];
 
     public function index(Request $request, string $view = 'insights'): View
@@ -139,65 +138,7 @@ class SenaiStockController extends Controller
         return back()->with('status', "{$data['quantity']} unidade(s) recebidas para {$book->title}.");
     }
 
-<<<<<<< HEAD
-    public function receiveViaApi(Request $request, Book $book): JsonResponse
-    {
-        $data = $request->validate([
-            'quantity' => ['required', 'integer', 'min:1'],
-            'notes' => ['nullable', 'string', 'max:1000'],
-        ]);
-
-        DB::transaction(function () use ($book, $data, $request): void {
-            $book->increment('quantity', (int) $data['quantity']);
-
-            Movement::create([
-                'type' => 'entrada',
-                'book_id' => $book->id,
-                'funcionario_id' => $request->session()->get('employee.id'),
-                'quantity' => (int) $data['quantity'],
-                'justification' => $data['notes'] ?: 'Recebimento de material existente.',
-            ]);
-        });
-
-        return response()->json([
-            'message' => "{$data['quantity']} unidade(s) recebidas para {$book->title}.",
-        ]);
-    }
-
-    public function withdrawViaApi(Request $request, Book $book): JsonResponse
-    {
-        $data = $request->validate([
-            'quantity' => ['required', 'integer', 'min:1'],
-            'justification' => ['required', 'string', 'max:1000'],
-        ]);
-
-        DB::transaction(function () use ($book, $data, $request): void {
-            if ((int) $data['quantity'] > $book->quantity) {
-                throw ValidationException::withMessages([
-                    'quantity' => "Saldo insuficiente para {$book->title}. Disponível: {$book->quantity}.",
-                ]);
-            }
-
-            $book->decrement('quantity', (int) $data['quantity']);
-
-            Movement::create([
-                'type' => 'saida',
-                'book_id' => $book->id,
-                'funcionario_id' => $request->session()->get('employee.id'),
-                'quantity' => (int) $data['quantity'],
-                'justification' => $data['justification'],
-            ]);
-        });
-
-        return response()->json([
-            'message' => "{$data['quantity']} unidade(s) retiradas do estoque de {$book->title}.",
-        ]);
-    }
-
-    public function storeNewMaterial(Request $request): RedirectResponse
-=======
     public function storeNewMaterial(Request $request, StockService $stockService): RedirectResponse
->>>>>>> 14e433733c24a10b65f8b776967ed874f72e02e6
     {
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
@@ -481,34 +422,6 @@ class SenaiStockController extends Controller
             ->with('status', "Ordem {$purchaseOrder->order_number} marcada como entregue.");
     }
 
-    public function storeSupplier(Request $request): RedirectResponse
-    {
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'contact_name' => ['nullable', 'string', 'max:255'],
-            'email' => ['nullable', 'email', 'max:255'],
-            'phone' => ['nullable', 'string', 'max:30'],
-            'lead_time_days' => ['required', 'integer', 'min:1', 'max:120'],
-        ]);
-
-        Supplier::create($data + ['status' => 'ativo']);
-
-        return redirect()
-            ->route('senai.dashboard', ['view' => 'suppliers'])
-            ->with('status', 'Fornecedor cadastrado.');
-    }
-
-    public function updateSupplierStatus(Request $request, Supplier $supplier): RedirectResponse
-    {
-        $data = $request->validate([
-            'status' => ['required', 'in:ativo,inativo'],
-        ]);
-
-        $supplier->update(['status' => $data['status']]);
-
-        return back()->with('status', 'Status do fornecedor atualizado.');
-    }
-
     public function addCriticalBookToCart(Request $request, Book $book): RedirectResponse
     {
         $data = $request->validate([
@@ -789,11 +702,14 @@ class SenaiStockController extends Controller
         }
 
         if (!Supplier::query()->exists()) {
-            collect([
-                ['name' => 'Editora SENAI-SP', 'contact_name' => 'Atendimento Corporativo', 'email' => 'pedidos@editorasenai.com.br', 'phone' => '(11) 3000-0101', 'lead_time_days' => 5],
-                ['name' => 'Novatec Editora', 'contact_name' => 'Equipe Comercial', 'email' => 'comercial@novatec.com.br', 'phone' => '(11) 3214-4000', 'lead_time_days' => 9],
-                ['name' => 'Editora Erica', 'contact_name' => 'Vendas Escolares', 'email' => 'escolas@erica.com.br', 'phone' => '(11) 3188-9000', 'lead_time_days' => 12],
-            ])->each(fn ($supplier) => Supplier::create($supplier + ['status' => 'ativo']));
+            Supplier::create([
+                'name' => 'Editora SENAI-SP',
+                'contact_name' => 'Atendimento Corporativo',
+                'email' => 'pedidos@editorasenai.com.br',
+                'phone' => '(11) 3000-0101',
+                'lead_time_days' => 5,
+                'status' => 'ativo',
+            ]);
         }
 
         if (TeacherRequest::query()->exists() || !Book::query()->exists()) {
@@ -831,13 +747,17 @@ class SenaiStockController extends Controller
 
     private function canAccessView(string $view, string $roleKey): bool
     {
-        $adminOnlyViews = ['classes', 'people', 'settings'];
+        $adminOnlyViews = ['classes', 'people'];
 
         if (in_array($view, $adminOnlyViews, true)) {
-            return in_array($roleKey, ['administrador', 'coordenador'], true);
+            return in_array($roleKey, ['administrador'], true);
         }
 
-        return in_array($roleKey, ['administrador', 'coordenador', 'almoxarife'], true);
+        if ($view === 'purchases') {
+            return in_array($roleKey, ['administrador', 'almoxarife'], true);
+        }
+
+        return in_array($roleKey, ['administrador', 'almoxarife'], true);
     }
 
     private function roleKey(?string $role): string
