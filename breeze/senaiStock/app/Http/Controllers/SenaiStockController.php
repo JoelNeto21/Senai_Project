@@ -162,7 +162,7 @@ class SenaiStockController extends Controller
             'destination' => ['required', 'string', 'max:255'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.book_id' => ['nullable', 'integer', 'exists:books,id'],
-            'items.*.quantity' => ['nullable', 'integer', 'min:1'],
+            'items.*.quantity' => ['nullable', 'integer', 'min:1', 'max:500'],
         ]);
 
         $items = collect($data['items'])
@@ -177,6 +177,20 @@ class SenaiStockController extends Controller
             throw ValidationException::withMessages([
                 'items' => 'Adicione pelo menos um livro com quantidade para registrar a retirada.',
             ]);
+        }
+
+        $messages = [];
+        foreach ($items as $item) {
+            $book = Book::find($item['book_id']);
+            if (!$book || $book->quantity < $item['quantity']) {
+                $bookTitle = $book?->title ?? 'Livro desconhecido';
+                $available = $book?->quantity ?? 0;
+                $messages[$bookTitle] = "Quantidade insuficiente. Disponível: {$available}";
+            }
+        }
+
+        if (!empty($messages)) {
+            throw ValidationException::withMessages($messages);
         }
 
         $stockService->withdrawBatch($items, $data['destination'], $request->session()->get('employee.id'));
@@ -219,6 +233,15 @@ class SenaiStockController extends Controller
         $data = $request->validate([
             'message' => ['nullable', 'string', 'max:1200'],
         ]);
+
+        if ($teacherRequest->book_id) {
+            $book = Book::find($teacherRequest->book_id);
+            if ($book && $book->quantity < $teacherRequest->quantity) {
+                throw ValidationException::withMessages([
+                    'quantity' => "Quantidade solicitada ({$teacherRequest->quantity}) excede o estoque disponível ({$book->quantity}). Considere gerar um pedido de compra.",
+                ]);
+            }
+        }
 
         $service->approve($teacherRequest, $request->session()->get('employee.id'), $data['message'] ?? null);
 
