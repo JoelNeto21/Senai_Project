@@ -66,8 +66,6 @@ class SenaiStockController extends Controller
             $books = collect(config('senaistock.books', []));
         }
 
-        $this->ensureDemoOperationalData();
-
         $processedTeacherRequests = collect($request->session()->get('processed_teacher_requests', []))
             ->map(fn ($id) => (int) $id)
             ->all();
@@ -450,43 +448,20 @@ class SenaiStockController extends Controller
 
     private function presentBook(Book $book): array
     {
-        $subject = $book->subject ?: 'Geral';
-        $subjectMeta = [
-            'Matematica' => ['author' => 'Equipe SENAI', 'publisher' => 'Editora SENAI-SP', 'pages' => 220],
-            'Matemática' => ['author' => 'Equipe SENAI', 'publisher' => 'Editora SENAI-SP', 'pages' => 220],
-            'Portugues' => ['author' => 'Equipe Linguagens', 'publisher' => 'Atica', 'pages' => 260],
-            'Português' => ['author' => 'Equipe Linguagens', 'publisher' => 'Atica', 'pages' => 260],
-            'Historia' => ['author' => 'Marcos Lima', 'publisher' => 'Moderna', 'pages' => 300],
-            'História' => ['author' => 'Marcos Lima', 'publisher' => 'Moderna', 'pages' => 300],
-            'Ciencias' => ['author' => 'Dra. Ana Ribeiro', 'publisher' => 'Saraiva', 'pages' => 280],
-            'Ciências' => ['author' => 'Dra. Ana Ribeiro', 'publisher' => 'Saraiva', 'pages' => 280],
-            'Tecnologia' => ['author' => 'Equipe Tech SENAI', 'publisher' => 'Novatec', 'pages' => 340],
-            'Mecanica' => ['author' => 'Instrutores SENAI', 'publisher' => 'Editora SENAI-SP', 'pages' => 310],
-            'Mecânica' => ['author' => 'Instrutores SENAI', 'publisher' => 'Editora SENAI-SP', 'pages' => 310],
-            'Eletrica' => ['author' => 'Instrutores SENAI', 'publisher' => 'Editora SENAI-SP', 'pages' => 290],
-            'Elétrica' => ['author' => 'Instrutores SENAI', 'publisher' => 'Editora SENAI-SP', 'pages' => 290],
-        ];
-
-        $meta = $subjectMeta[$subject] ?? [
-            'author' => 'Curadoria SENAI',
-            'publisher' => 'Biblioteca Tecnica',
-            'pages' => 180 + ($book->id * 7),
-        ];
-
         return [
             'id' => $book->id,
             'title' => $book->title,
-            'author' => $meta['author'],
-            'publisher' => $meta['publisher'],
-            'year' => (string) (2020 + ($book->id % 5)),
-            'pages' => $meta['pages'],
+            'author' => $book->author ?: 'Não informado',
+            'publisher' => $book->publisher ?: 'Não informado',
+            'year' => $book->publication_year ?? (2020 + ($book->id % 5)),
+            'pages' => $book->pages ?? 180,
             'isbn' => $book->isbn,
-            'subject' => $subject,
+            'subject' => $book->subject ?: 'Geral',
             'quantity' => (int) $book->quantity,
             'minimumStock' => (int) ($book->minimum_stock ?? config('senaistock.low_stock_threshold', 8)),
             'location' => $book->location ?: 'Almoxarifado central',
             'status' => $book->status ?: 'ativo',
-            'desc' => $book->description ?: 'Material didatico de ' . $subject . ' usado para aulas, reposicoes e retiradas controladas pelo almoxarifado.',
+            'desc' => $book->description ?: 'Material didatico usado para aulas, reposicoes e retiradas controladas pelo almoxarifado.',
         ];
     }
 
@@ -693,56 +668,6 @@ class SenaiStockController extends Controller
         }
 
         return TeacherRequest::find($teacherRequest);
-    }
-
-    private function ensureDemoOperationalData(): void
-    {
-        if (!Schema::hasTable('suppliers') || !Schema::hasTable('teacher_requests')) {
-            return;
-        }
-
-        if (!Supplier::query()->exists()) {
-            Supplier::create([
-                'name' => 'Editora SENAI-SP',
-                'contact_name' => 'Atendimento Corporativo',
-                'email' => 'pedidos@editorasenai.com.br',
-                'phone' => '(11) 3000-0101',
-                'lead_time_days' => 5,
-                'status' => 'ativo',
-            ]);
-        }
-
-        if (TeacherRequest::query()->exists() || !Book::query()->exists()) {
-            return;
-        }
-
-        $books = Book::query()->orderBy('subject')->orderBy('title')->limit(4)->get();
-        $teachers = [
-            ['teacher_name' => 'Prof. Carlos Mendes', 'teacher_email' => 'carlos.mendes@escola.senai.br', 'class_name' => 'MEC-2A'],
-            ['teacher_name' => 'Profa. Ana Paula', 'teacher_email' => 'ana.paula@escola.senai.br', 'class_name' => 'DS-1B'],
-            ['teacher_name' => 'Prof. Roberto Alves', 'teacher_email' => 'roberto.alves@escola.senai.br', 'class_name' => 'ELE-3C'],
-            ['teacher_name' => 'Profa. Fernanda Lima', 'teacher_email' => 'fernanda.lima@escola.senai.br', 'class_name' => 'ADM-1A'],
-        ];
-
-        $books->values()->each(function (Book $book, int $index) use ($teachers): void {
-            $requestedQuantity = match ($index) {
-                0 => max(1, min($book->quantity, 18)),
-                1 => $book->quantity + 5,
-                2 => max(1, min($book->quantity, 45)),
-                default => $book->quantity + 10,
-            };
-
-            TeacherRequest::create($teachers[$index] + [
-                'protocol' => 'SS-' . now()->format('Ymd') . '-' . Str::upper(Str::random(5)),
-                'subject' => $book->subject,
-                'book_id' => $book->id,
-                'title' => $book->title,
-                'quantity' => $requestedQuantity,
-                'status' => $index === 2 ? 'atendido' : 'pendente',
-                'due_date' => now()->addDays(3 + $index)->toDateString(),
-                'notes' => 'Pedido inicial para demonstracao do fluxo do almoxarifado.',
-            ]);
-        });
     }
 
     private function canAccessView(string $view, string $roleKey): bool

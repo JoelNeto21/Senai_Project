@@ -21,6 +21,8 @@ class DatabaseSeeder extends Seeder
                 TurmaSeeder::class,
                 FuncionarioSeeder::class,
                 BookSeeder::class,
+                SupplierSeeder::class,
+                TeacherRequestSeeder::class,
             ]
         );
     }
