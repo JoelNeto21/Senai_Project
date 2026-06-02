@@ -35,8 +35,9 @@ abstract class TestCase extends BaseTestCase
         return $this->withSession([
             'employee' => [
                 'id' => 1,
-                'name' => 'Almoxarifado Senai',
-                'cargo' => 'Almoxarife',
+                'name' => 'Administrador Senai',
+                'cargo' => 'Administrador',
+                'role_key' => 'administrador',
             ],
         ]);
     }

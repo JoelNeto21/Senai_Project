@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Curso;
 use App\Models\Turma;
 use Illuminate\Database\Seeder;
 
@@ -9,8 +10,16 @@ class TurmaSeeder extends Seeder
 {
     public function run(): void
     {
-        Turma::create(['nome_turma' => 'Turma 101 - Manhã', 'curso_id' => 1]);
-        Turma::create(['nome_turma' => 'Turma 102 - Tarde', 'curso_id' => 1]);
-        Turma::create(['nome_turma' => 'Turma 201 - Noite', 'curso_id' => 3]);
+        $desenvolvimento = Curso::firstOrCreate(['nome_curso' => 'Desenvolvimento de Sistemas']);
+        $eletro = Curso::firstOrCreate(['nome_curso' => 'Eletroeletronica']);
+
+        collect([
+            ['nome_turma' => 'DS-1A', 'curso_id' => $desenvolvimento->id],
+            ['nome_turma' => 'DS-2B', 'curso_id' => $desenvolvimento->id],
+            ['nome_turma' => 'ELE-3C', 'curso_id' => $eletro->id],
+        ])->each(fn (array $turma) => Turma::firstOrCreate(
+            ['nome_turma' => $turma['nome_turma']],
+            ['curso_id' => $turma['curso_id']]
+        ));
     }
 }

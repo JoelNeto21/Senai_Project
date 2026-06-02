@@ -4,6 +4,32 @@ import Alpine from 'alpinejs';
 
 window.Alpine = Alpine;
 
+Alpine.data('demoAccessCard', () => ({
+	open: false,
+	users: [
+		{ label: 'ADM', role: 'Gestao e relatorios', nif: '111111', cpf: '11111111111' },
+		{ label: 'Almoxarifado', role: 'Operacao de estoque', nif: '123456', cpf: '12345678900' },
+		{ label: 'Professor', role: 'Solicitacao sem login', url: '/solicitar-livros' },
+	],
+
+	fill(user) {
+		if (user.url) {
+			window.location.href = user.url;
+			return;
+		}
+
+		const nif = document.querySelector('#nif');
+		const cpf = document.querySelector('#cpf');
+
+		if (nif && cpf) {
+			nif.value = user.nif;
+			cpf.value = user.cpf;
+			nif.dispatchEvent(new Event('input', { bubbles: true }));
+			cpf.dispatchEvent(new Event('input', { bubbles: true }));
+		}
+	},
+}));
+
 Alpine.data('spotlightSearch', (books = [], pages = [], routeTemplate = '/dashboard/__VIEW__') => ({
 	books,
 	pages,

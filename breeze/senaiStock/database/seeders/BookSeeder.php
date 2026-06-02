@@ -67,7 +67,15 @@ class BookSeeder extends Seeder
         ];
 
         foreach ($books as $book) {
-            Book::create($book);
+            Book::firstOrCreate(
+                ['isbn' => $book['isbn']],
+                $book + [
+                    'description' => 'Livro didatico utilizado em turmas SENAI-SP.',
+                    'minimum_stock' => 10,
+                    'location' => 'Almoxarifado central',
+                    'status' => 'ativo',
+                ]
+            );
         }
     }
 }

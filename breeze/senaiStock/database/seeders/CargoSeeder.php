@@ -9,8 +9,7 @@ class CargoSeeder extends Seeder
 {
     public function run(): void
     {
-        Cargo::create(['Nome_cargo' => 'Almoxarife']);
-        Cargo::create(['Nome_cargo' => 'Professor']);
-        Cargo::create(['Nome_cargo' => 'Coordenador']);
+        collect(['Administrador', 'Almoxarife', 'Professor', 'Coordenador'])
+            ->each(fn (string $cargo) => Cargo::firstOrCreate(['Nome_cargo' => $cargo]));
     }
 }
