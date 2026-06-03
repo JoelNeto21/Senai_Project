@@ -84,7 +84,7 @@ class SenaiStockController extends Controller
             ->get();
 
         $navigationItems = collect(config('senaistock.navigation_items', []))
-            ->filter(fn (array $item) => $this->canAccessView($item['id'], $roleKey))
+            ->filter(fn (array $item) => in_array($roleKey, $item['roles'] ?? ['administrador', 'almoxarife'], true))
             ->values()
             ->all();
         $turmas = Turma::with('curso')->orderBy('nome_turma')->get();
@@ -695,14 +695,12 @@ class SenaiStockController extends Controller
 
     private function canAccessView(string $view, string $roleKey): bool
     {
-        $adminOnlyViews = ['classes', 'people'];
+        $navigationItems = config('senaistock.navigation_items', []);
 
-        if (in_array($view, $adminOnlyViews, true)) {
-            return in_array($roleKey, ['administrador'], true);
-        }
-
-        if ($view === 'purchases') {
-            return in_array($roleKey, ['administrador', 'almoxarife'], true);
+        foreach ($navigationItems as $item) {
+            if ($item['id'] === $view) {
+                return in_array($roleKey, $item['roles'] ?? ['administrador', 'almoxarife'], true);
+            }
         }
 
         return in_array($roleKey, ['administrador', 'almoxarife'], true);

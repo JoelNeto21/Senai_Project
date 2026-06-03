@@ -41,6 +41,7 @@
                 return $monthNames[(int) $date->format('n')] . ' de ' . $date->format('Y');
             });
 
+        $isAdmin = ($employee['role_key'] ?? '') === 'administrador';
         $activeRequestStatuses = ['pendente', 'aprovado', 'separado', 'compra'];
         $pendingRequests = $teacherRequests->whereIn('status', $activeRequestStatuses);
         $processedRequests = $teacherRequests->whereNotIn('status', $activeRequestStatuses);
@@ -365,7 +366,7 @@
                                 @if (!empty($request['protocol']))
                                     <a href="{{ route('teacher-requests.show', $request['protocol']) }}" target="_blank" class="text-sm font-medium text-gray-600 hover:text-gray-900 bg-white border border-gray-200 px-4 py-2.5 rounded-xl text-center">Ver protocolo</a>
                                 @endif
-                                @if ($request['status'] === 'pendente')
+                                @if ($isAdmin && $request['status'] === 'pendente')
                                     <form method="POST" action="{{ route('stock.teacher-requests.approve', $request['id']) }}">
                                         @csrf
                                         <input type="hidden" name="message" value="Pedido aprovado. O almoxarifado iniciara a separacao do material.">
@@ -373,12 +374,12 @@
                                     </form>
                                 @endif
                                 @if ($requestMissing === 0)
-                                    @if ($request['status'] === 'separado')
+                                    @if ($isAdmin && $request['status'] === 'separado')
                                         <form method="POST" action="{{ route('stock.teacher-requests.fulfill', $request['id']) }}">
                                             @csrf
                                             <button type="submit" class="w-full text-sm font-medium bg-emerald-600 text-white px-4 py-2.5 rounded-xl hover:bg-emerald-700">Atender e baixar</button>
                                         </form>
-                                    @elseif (in_array($request['status'], ['aprovado', 'compra'], true))
+                                    @elseif ($isAdmin && in_array($request['status'], ['aprovado', 'compra'], true))
                                         <form method="POST" action="{{ route('stock.teacher-requests.notify', $request['id']) }}">
                                             @csrf
                                             <input type="hidden" name="status" value="separado">
@@ -386,12 +387,13 @@
                                             <button type="submit" class="w-full text-sm font-medium bg-emerald-600 text-white px-4 py-2.5 rounded-xl hover:bg-emerald-700">Separar e notificar</button>
                                         </form>
                                     @endif
-                                @else
+                                @elseif ($isAdmin)
                                     <form method="POST" action="{{ route('stock.teacher-requests.purchase', $request['id']) }}">
                                         @csrf
                                         <button type="submit" class="w-full text-sm font-medium bg-amber-500 text-white px-4 py-2.5 rounded-xl hover:bg-amber-600">Comprar Faltante</button>
                                     </form>
                                 @endif
+                                @if ($isAdmin)
                                 <details class="rounded-xl border border-gray-200 bg-white p-3">
                                     <summary class="cursor-pointer text-center text-xs font-bold uppercase tracking-wide text-gray-500">Responder</summary>
                                     <form method="POST" action="{{ route('stock.teacher-requests.notify', $request['id']) }}" class="mt-3 space-y-2">
@@ -410,6 +412,7 @@
                                         <button type="submit" class="w-full rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100">Rejeitar</button>
                                     </form>
                                 </details>
+                                @endif
                             </div>
                         </div>
                     </div>
@@ -456,115 +459,63 @@
             </div>
         </div>
     @elseif ($activeView === 'purchases')
+        @php
+            $isAdmin = ($employee['role_key'] ?? '') === 'administrador';
+        @endphp
         <div class="animate-in fade-in duration-500" x-data="purchaseCartForm(@js($booksArray), @js($purchaseCart))">
             <div class="mb-8">
                 <h1 class="text-3xl font-semibold tracking-tight text-gray-900">Gestão de Compras</h1>
-                <p class="text-gray-500 mt-1 text-base">Monte a lista de reposição antes de gerar a ordem de compra.</p>
+                <p class="text-gray-500 mt-1 text-base">{{ $isAdmin ? 'Aprovação de requisições de compra.' : 'Suas requisições de compra — aguardando aprovação do Administrador.' }}</p>
+                @if (!$isAdmin)
+                    <div class="mt-4 rounded-2xl bg-amber-50 border border-amber-100 px-5 py-4 text-sm font-medium text-amber-700">
+                        Suas requisições de compra serão analisadas pelo Administrador. O prazo de retorno é informado após aprovação.
+                    </div>
+                @endif
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                <div class="lg:col-span-8 space-y-6">
-                    <div class="space-y-3">
-                        <template x-for="(item, index) in items" :key="item.id">
-                            <div class="bg-white border border-gray-100 shadow-sm rounded-2xl p-4 flex flex-col sm:flex-row gap-4 sm:items-center">
-                                <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0 bg-gray-100 text-gray-600">
-                                    <span x-text="item.type === 'restock' ? 'R' : 'N'"></span>
-                                </div>
-                                <div class="flex-1 min-w-0">
-                                    <p class="font-semibold text-gray-900 truncate" x-text="item.title"></p>
-                                    <p class="text-xs uppercase tracking-wider text-gray-400" x-text="item.type === 'restock' ? 'Reposição' : 'Título Inédito'"></p>
-                                </div>
-                                <div class="flex gap-3 w-full sm:w-auto">
-                                    <input type="text" x-model="item.justification" class="w-full sm:w-80 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 outline-none" placeholder="Justificativa">
-                                    <input type="number" min="1" x-model.number="item.quantity" class="w-24 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-sm text-center focus:ring-2 focus:ring-red-500 outline-none">
-                                    <button type="button" @click="removeItem(index)" class="px-3 py-2 rounded-xl text-gray-400 hover:text-red-600 hover:bg-red-50">Remover</button>
-                                </div>
-                            </div>
-                        </template>
-
-                        <div x-show="items.length === 0" class="bg-white border border-dashed border-gray-200 rounded-2xl p-10 text-center text-gray-500">
-                            Sua lista de compras está vazia.
-                        </div>
-                    </div>
-
-                    <div class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 sm:p-8">
-                        <h2 class="text-lg font-semibold text-gray-900 mb-6">Adicionar à Lista Manualmente</h2>
-                        <div class="flex p-1 bg-gray-100 rounded-xl mb-6 w-full sm:w-fit">
-                            <button type="button" @click="reqType = 'restock'" class="px-6 py-2.5 text-sm font-medium rounded-lg" :class="reqType === 'restock' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'">Repor Estoque</button>
-                            <button type="button" @click="reqType = 'new'" class="px-6 py-2.5 text-sm font-medium rounded-lg" :class="reqType === 'new' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'">Título Inédito</button>
-                        </div>
-
-                        <form @submit.prevent="addItem" class="space-y-5">
-                            <div x-show="reqType === 'restock'">
-                                <label class="block text-sm font-medium text-gray-900 mb-2">Selecionar Obra</label>
-                                <select x-model="bookId" class="w-full rounded-xl border border-gray-100 bg-gray-50 px-4 py-3.5 text-sm text-gray-900 focus:ring-2 focus:ring-red-500 outline-none">
-                                    <option value="">Escolha um título cadastrado...</option>
-                                    <template x-for="book in catalog" :key="book.id">
-                                        <option :value="book.id" x-text="`${book.title} (Estoque: ${book.quantity})`"></option>
-                                    </template>
-                                </select>
-                            </div>
-
-                            <div x-show="reqType === 'new'">
-                                <label class="block text-sm font-medium text-gray-900 mb-2">Nome da Obra / Assunto</label>
-                                <input type="text" x-model="newTitle" class="w-full rounded-xl border border-gray-100 bg-gray-50 px-4 py-3.5 text-sm text-gray-900 focus:ring-2 focus:ring-red-500 outline-none" placeholder="Ex: Introdução ao Desenho 3D">
-                            </div>
-
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-900 mb-2">Quantidade de Compra</label>
-                                    <input type="number" min="1" x-model.number="quantity" class="w-full rounded-xl border border-gray-100 bg-gray-50 px-4 py-3.5 text-sm text-gray-900 focus:ring-2 focus:ring-red-500 outline-none" placeholder="Ex: 50">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-900 mb-2">Fornecedor / Editora</label>
-                                    <input type="text" x-model="justification" class="w-full rounded-xl border border-gray-100 bg-gray-50 px-4 py-3.5 text-sm text-gray-900 focus:ring-2 focus:ring-red-500 outline-none" placeholder="Ex: Editora Érica">
-                                </div>
-                            </div>
-
-                            <button type="submit" class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 font-medium text-gray-900 transition-all hover:bg-gray-50">Adicionar à Lista</button>
-                        </form>
+            @if ($purchaseCart->isEmpty())
+                <div class="bg-white border border-dashed border-gray-200 rounded-3xl p-12 text-center text-gray-500">
+                    Nenhum item no carrinho de compras.
+                </div>
+            @else
+                <div class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-gray-50/80 text-gray-500">
+                            <tr>
+                                <th class="px-6 py-4 font-medium">Material</th>
+                                <th class="px-6 py-4 font-medium text-right">Qtd.</th>
+                                <th class="px-6 py-4 font-medium">Justificativa</th>
+                                <th class="px-6 py-4 font-medium text-center">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($purchaseCart as $item)
+                                <tr class="border-t border-gray-50">
+                                    <td class="px-6 py-4 font-medium text-gray-900">{{ $item['title'] }}</td>
+                                    <td class="px-6 py-4 text-right font-semibold text-gray-900">{{ $item['quantity'] }}</td>
+                                    <td class="px-6 py-4 text-gray-500">{{ $item['justification'] ?? '—' }}</td>
+                                    <td class="px-6 py-4 text-center">
+                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-100">Aguardando aprovação</span>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                    <div class="px-6 py-5 border-t border-gray-100 flex items-center justify-end gap-4">
+                        @if ($isAdmin)
+                            <form method="POST" action="{{ route('stock.purchases.generate') }}" @submit="prepareSubmit()">
+                                @csrf
+                                <input type="hidden" name="items" x-model="itemsJson">
+                                <button type="submit" class="rounded-xl bg-gray-900 px-6 py-3 text-sm font-semibold text-white hover:bg-gray-800">
+                                    Aprovar e Gerar Planilha
+                                </button>
+                            </form>
+                        @else
+                            <span class="text-sm text-gray-500">Aguardando aprovação do Administrador</span>
+                        @endif
                     </div>
                 </div>
-
-                <div class="lg:col-span-4">
-                    <div class="sticky top-24 bg-white border border-gray-100 shadow-sm rounded-3xl p-6 sm:p-8">
-                        <h2 class="text-lg font-semibold text-gray-900 mb-6 border-b border-gray-100 pb-4">Resumo da Compra</h2>
-                        <div class="space-y-4 mb-8">
-                            <div class="flex justify-between items-center">
-                                <span class="text-gray-500">Títulos diferentes</span>
-                                <span class="font-semibold text-gray-900" x-text="items.length"></span>
-                            </div>
-                            <div class="flex justify-between items-center">
-                                <span class="text-gray-500">Total de exemplares</span>
-                                <span class="font-semibold text-gray-900 text-xl" x-text="totalItems"></span>
-                            </div>
-                        </div>
-                        <form method="POST" action="{{ route('stock.purchases.generate') }}" @submit="prepareSubmit()">
-                            @csrf
-                            <input type="hidden" name="items" x-model="itemsJson">
-                            <div class="space-y-4 mb-5">
-                                <div>
-                                    <label class="block text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">Fornecedor preferencial</label>
-                                    <select name="supplier_id" class="w-full rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-sm text-gray-900 focus:ring-2 focus:ring-red-500 outline-none">
-                                        <option value="">Definir depois</option>
-                                        @foreach ($suppliers->where('status', 'ativo') as $supplier)
-                                            <option value="{{ $supplier->id }}">{{ $supplier->name }} • {{ $supplier->lead_time_days }} dias</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">Observação interna</label>
-                                    <textarea name="notes" rows="2" class="w-full rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-sm text-gray-900 focus:ring-2 focus:ring-red-500 outline-none resize-none" placeholder="Ex: compra para início do semestre"></textarea>
-                                </div>
-                            </div>
-                            <button type="submit" class="w-full font-medium py-4 px-4 rounded-xl transition-colors flex items-center justify-center bg-gray-900 hover:bg-gray-800 text-white disabled:opacity-40" :disabled="items.length === 0">
-                                Gerar Planilha de Pedido
-                            </button>
-                        </form>
-                        <p class="text-xs text-center text-gray-400 mt-4 leading-relaxed">Ao gerar, o pedido vai para o historico e o carrinho e limpo.</p>
-                    </div>
-                </div>
-            </div>
+            @endif
         </div>
     @elseif ($activeView === 'history')
         <div class="animate-in fade-in duration-500">
@@ -675,7 +626,9 @@
                         <p class="mt-2 text-xs font-bold uppercase" :class="isCritical(selectedBook) ? 'text-red-600' : 'text-emerald-600'" x-text="isCritical(selectedBook) ? 'Estoque critico' : 'Estoque adequado'"></p>
                         <div class="mt-6 space-y-3">
                             <a href="{{ route('senai.dashboard', ['view' => 'withdraw']) }}" class="block rounded-xl bg-red-600 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-red-700">Retirar Material</a>
-                            <a href="{{ route('senai.dashboard', ['view' => 'purchases']) }}" class="block rounded-xl border border-gray-200 bg-white px-4 py-3 text-center text-sm font-semibold text-gray-800 hover:bg-gray-50">Colocar no Carrinho</a>
+                            @if ($isAdmin)
+                                <a href="{{ route('senai.dashboard', ['view' => 'purchases']) }}" class="block rounded-xl border border-gray-200 bg-white px-4 py-3 text-center text-sm font-semibold text-gray-800 hover:bg-gray-50">Colocar no Carrinho</a>
+                            @endif
                         </div>
                     </div>
                 </div>
@@ -1026,18 +979,20 @@
                             <p class="text-sm text-gray-500">{{ $alert['message'] }}</p>
                         </div>
                         <div class="w-full md:w-auto">
-                            @if ($alert['type'] === 'stock')
+                            @if ($isAdmin && $alert['type'] === 'stock')
                                 <form method="POST" action="{{ route('stock.alerts.purchase', $alert['bookId']) }}">
                                     @csrf
                                     <button type="submit" class="w-full md:w-auto rounded-xl bg-gray-900 px-4 py-3 text-sm font-semibold text-white hover:bg-gray-800">{{ $alert['action'] }}</button>
                                 </form>
-                            @elseif ($alert['type'] === 'request')
+                            @elseif ($isAdmin && $alert['type'] === 'request')
                                 <form method="POST" action="{{ route('stock.teacher-requests.purchase', $alert['requestId']) }}">
                                     @csrf
                                     <button type="submit" class="w-full md:w-auto rounded-xl bg-amber-500 px-4 py-3 text-sm font-semibold text-white hover:bg-amber-600">{{ $alert['action'] }}</button>
                                 </form>
-                            @else
+                            @elseif ($alert['type'] === 'purchase')
                                 <a href="{{ route('senai.dashboard', ['view' => 'history']) }}" class="block rounded-xl border border-gray-200 px-4 py-3 text-center text-sm font-semibold text-gray-700 hover:bg-gray-50">{{ $alert['action'] }}</a>
+                            @else
+                                <span class="text-sm text-gray-500">Apenas Administrador pode comprar</span>
                             @endif
                         </div>
                     </div>
@@ -1189,61 +1144,31 @@
                 @endforelse
             </div>
         </div>
-    @elseif ($activeView === 'settings')
-        <div class="animate-in fade-in duration-500 max-w-4xl">
+    @elseif ($activeView === 'suppliers')
+        <div class="animate-in fade-in duration-500 max-w-2xl mx-auto">
             <div class="mb-8">
-                <h1 class="text-3xl font-semibold tracking-tight text-gray-900">Configurações</h1>
-                <p class="text-gray-500 mt-1 text-base">Regras operacionais e integrações ativas do SenaiStock.</p>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                <div class="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm">
-                    <h2 class="text-lg font-semibold text-gray-900 mb-4">Regras do estoque</h2>
-                    <dl class="space-y-4 text-sm">
-                        <div class="flex items-center justify-between gap-4">
-                            <dt class="text-gray-500">Limite crítico</dt>
-                            <dd class="font-semibold text-red-700">abaixo de {{ $stockCriticalThreshold }} un</dd>
-                        </div>
-                        <div class="flex items-center justify-between gap-4">
-                            <dt class="text-gray-500">Bloqueio de saída</dt>
-                            <dd class="font-semibold text-emerald-700">ativo</dd>
-                        </div>
-                        <div class="flex items-center justify-between gap-4">
-                            <dt class="text-gray-500">Validação consolidada</dt>
-                            <dd class="font-semibold text-emerald-700">ativa</dd>
-                        </div>
-                    </dl>
-                </div>
-
-                <div class="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm">
-                    <h2 class="text-lg font-semibold text-gray-900 mb-4">Sessão atual</h2>
-                    <dl class="space-y-4 text-sm">
-                        <div class="flex items-center justify-between gap-4">
-                            <dt class="text-gray-500">Usuário</dt>
-                            <dd class="font-semibold text-gray-900">{{ data_get($employee, 'name', 'Almoxarifado') }}</dd>
-                        </div>
-                        <div class="flex items-center justify-between gap-4">
-                            <dt class="text-gray-500">Cargo</dt>
-                            <dd class="font-semibold text-gray-900">{{ data_get($employee, 'cargo', 'Almoxarife') }}</dd>
-                        </div>
-                        <div class="flex items-center justify-between gap-4">
-                            <dt class="text-gray-500">Ambiente</dt>
-                            <dd class="font-semibold text-gray-900">{{ app()->environment() }}</dd>
-                        </div>
-                    </dl>
-                </div>
+                <h1 class="text-3xl font-semibold tracking-tight text-gray-900">Fornecedor</h1>
+                <p class="text-gray-500 mt-1 text-base">Fornecedor padrão para todas as ordens de compra.</p>
             </div>
 
             <div class="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm">
-                <h2 class="text-lg font-semibold text-gray-900 mb-5">Mapa de funcionalidades</h2>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    @foreach ($navigationItems as $item)
-                        <a href="{{ route('senai.dashboard', ['view' => $item['id']]) }}" class="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 hover:bg-gray-100 transition">
-                            <p class="font-semibold text-gray-900">{{ $item['label'] }}</p>
-                            <p class="text-xs text-gray-500 mt-1">{{ $item['group'] ?? 'Menu' }}</p>
-                        </a>
-                    @endforeach
-                </div>
+                @forelse ($suppliers as $supplier)
+                    <div class="flex items-center gap-4">
+                        <div class="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center">
+                            <span class="text-xl font-bold text-gray-500">S</span>
+                        </div>
+                        <div class="flex-1">
+                            <h2 class="text-xl font-semibold text-gray-900">{{ $supplier->name }}</h2>
+                            <p class="text-sm text-gray-500">{{ $supplier->email }} • {{ $supplier->phone }}</p>
+                            <p class="text-sm text-gray-500">Prazo médio: {{ $supplier->lead_time_days }} dias úteis</p>
+                        </div>
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">
+                            {{ ucfirst($supplier->status) }}
+                        </span>
+                    </div>
+                @empty
+                    <p class="text-gray-500 text-center py-8">Editora SENAI-SP será configurada como fornecedor padrão.</p>
+                @endforelse
             </div>
         </div>
     @endif
