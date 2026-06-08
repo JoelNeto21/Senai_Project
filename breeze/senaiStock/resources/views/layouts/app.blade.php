@@ -62,10 +62,10 @@
                 </div>
 
                 <div class="px-4 flex-1 overflow-y-auto pb-4">
-                    <nav class="space-y-5">
+                    <nav class="space-y-6">
                         @foreach ($groupedNavigationItems as $group => $items)
                             <div>
-                                <p class="px-4 pb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-gray-400">{{ $group }}</p>
+                                <p class="px-4 pb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400">{{ $group }}</p>
                                 <div class="space-y-1">
                                     @foreach ($items as $item)
                                         @php
@@ -74,7 +74,7 @@
                                                 'alerts' => $alertCount,
                                                 'teacher_requests' => $pendingTeacherRequests,
                                                 'purchases' => $purchaseCartCount,
-                                                'withdraw' => $withdrawCartCount,
+                                                'stock' => $withdrawCartCount,
                                                 default => 0,
                                             };
                                             $icon = $item['icon'] ?? strtoupper(mb_substr($item['label'], 0, 1));

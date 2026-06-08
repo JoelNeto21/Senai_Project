@@ -30,14 +30,19 @@ abstract class TestCase extends BaseTestCase
         $this->assertNotNull($actual, $message);
     }
 
-    protected function withEmployeeSession(): static
+    protected function withEmployeeSession(string $cargo = 'Coordenador', ?string $name = null): static
     {
+        $name ??= match ($cargo) {
+            'Professor' => 'Prof. Carlos Mendes',
+            'Almoxarife' => 'Almoxarifado Senai',
+            default => 'Coordenador Senai',
+        };
+
         return $this->withSession([
             'employee' => [
                 'id' => 1,
-                'name' => 'Administrador Senai',
-                'cargo' => 'Administrador',
-                'role_key' => 'administrador',
+                'name' => $name,
+                'cargo' => $cargo,
             ],
         ]);
     }

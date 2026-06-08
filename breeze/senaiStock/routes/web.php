@@ -1,9 +1,9 @@
 <?php
 
-use App\Http\Controllers\EmployeeAuthController;
-use App\Http\Controllers\SenaiStockController;
-use App\Http\Controllers\FuncionarioController;
 use App\Http\Controllers\CargoController;
+use App\Http\Controllers\EmployeeAuthController;
+use App\Http\Controllers\FuncionarioController;
+use App\Http\Controllers\SenaiStockController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicTeacherRequestController;
 use Illuminate\Support\Facades\Route;
@@ -32,7 +32,7 @@ Route::middleware('employee.auth')->group(function () {
         ->name('dashboard');
 
     Route::get('/dashboard/{view}', [SenaiStockController::class, 'index'])
-        ->whereIn('view', ['insights', 'overview', 'teacher_requests', 'purchases', 'history', 'dashboard', 'library', 'receive', 'withdraw', 'movements', 'alerts', 'notifications', 'classes', 'people'])
+        ->whereIn('view', ['insights', 'overview', 'teacher_requests', 'purchases', 'history', 'dashboard', 'library', 'receive', 'withdraw', 'movements', 'stock', 'reports', 'alerts', 'suppliers', 'classes', 'people'])
         ->name('senai.dashboard');
 
     Route::post('/estoque/livros/{book}/receber', [SenaiStockController::class, 'receiveExisting'])
@@ -59,20 +59,25 @@ Route::middleware('employee.auth')->group(function () {
     Route::post('/estoque/compras/gerar', [SenaiStockController::class, 'generatePurchaseOrder'])
         ->middleware('employee.role:administrador')
         ->name('stock.purchases.generate');
+    Route::post('/estoque/compras/{purchaseOrder}/aprovar', [SenaiStockController::class, 'approvePurchaseOrder'])
+        ->name('stock.purchases.approve');
     Route::post('/estoque/compras/{purchaseOrder}/entregar', [SenaiStockController::class, 'markPurchaseOrderDelivered'])
         ->middleware('employee.role:administrador')
         ->name('stock.purchases.deliver');
     Route::post('/estoque/alertas/livros/{book}/comprar', [SenaiStockController::class, 'addCriticalBookToCart'])
         ->name('stock.alerts.purchase');
+    Route::post('/estoque/turmas', [SenaiStockController::class, 'storeTurma'])
+        ->name('stock.classes.store');
 
-    // Funcionarios routes (Administrador only)
-    Route::resource('funcionarios', FuncionarioController::class)
-        ->middleware('employee.role:administrador');
+    Route::middleware('employee.role:Coordenador')->group(function () {
+        Route::resource('funcionarios', FuncionarioController::class);
+        Route::resource('cargos', CargoController::class)->only(['index', 'store', 'destroy']);
+    });
 
-    // Cargos routes (Administrador only)
-    Route::resource('cargos', CargoController::class)
-        ->only(['index', 'store', 'destroy'])
-        ->middleware('employee.role:administrador');
+    Route::prefix('api')->group(function () {
+        Route::post('books/{book}/receive', [SenaiStockController::class, 'receiveViaApi']);
+        Route::post('books/{book}/withdraw', [SenaiStockController::class, 'withdrawViaApi']);
+    });
 });
 
 Route::middleware('auth')->group(function () {
@@ -112,4 +117,3 @@ Route::resource('requisicoes', RequisicaoController::class)
     ->middleware('employee.auth');
 
 require __DIR__.'/auth.php';
-

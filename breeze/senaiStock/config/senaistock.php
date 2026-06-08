@@ -4,20 +4,24 @@ return [
     'low_stock_threshold' => 8,
 
     'navigation_items' => [
-        ['id' => 'insights', 'label' => 'Insights', 'icon' => 'I', 'group' => 'Operação', 'roles' => ['administrador', 'almoxarife']],
-        ['id' => 'alerts', 'label' => 'Alertas', 'icon' => '!', 'group' => 'Operação', 'roles' => ['administrador', 'almoxarife']],
-        ['id' => 'notifications', 'label' => 'Notificacoes', 'icon' => 'N', 'group' => 'Operação', 'roles' => ['administrador', 'almoxarife']],
-        ['id' => 'teacher_requests', 'label' => 'Pedidos', 'icon' => 'P', 'group' => 'Operação', 'roles' => ['administrador', 'almoxarife']],
-        ['id' => 'receive', 'label' => 'Recebimento', 'icon' => '+', 'group' => 'Operação', 'roles' => ['administrador', 'almoxarife']],
-        ['id' => 'withdraw', 'label' => 'Retirada', 'icon' => '-', 'group' => 'Operação', 'roles' => ['administrador', 'almoxarife']],
-        ['id' => 'movements', 'label' => 'Movimentações', 'icon' => 'M', 'group' => 'Operação', 'roles' => ['administrador', 'almoxarife']],
-        ['id' => 'overview', 'label' => 'Visão Geral', 'icon' => 'V', 'group' => 'Gestão', 'roles' => ['administrador', 'almoxarife']],
-        ['id' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'D', 'group' => 'Gestão', 'roles' => ['administrador', 'almoxarife']],
-        ['id' => 'library', 'label' => 'Acervo', 'icon' => 'A', 'group' => 'Gestão', 'roles' => ['administrador', 'almoxarife']],
-        ['id' => 'purchases', 'label' => 'Compras', 'icon' => 'C', 'group' => 'Aprovações', 'roles' => ['administrador']],
-        ['id' => 'history', 'label' => 'Histórico', 'icon' => 'H', 'group' => 'Aprovações', 'roles' => ['administrador']],
-        ['id' => 'classes', 'label' => 'Turmas', 'icon' => 'T', 'group' => 'Administração', 'roles' => ['administrador']],
-        ['id' => 'people', 'label' => 'Equipe', 'icon' => 'E', 'group' => 'Administração', 'roles' => ['administrador']],
+        ['id' => 'insights', 'label' => 'Início', 'icon' => '⌂', 'group' => 'Painel'],
+        ['id' => 'alerts', 'label' => 'Alertas', 'icon' => '!', 'group' => 'Painel'],
+        ['id' => 'teacher_requests', 'label' => 'Pedidos de Professores', 'icon' => 'P', 'group' => 'Painel'],
+        ['id' => 'library', 'label' => 'Catálogo de Livros', 'icon' => 'L', 'group' => 'Livros'],
+        ['id' => 'stock', 'label' => 'Entrada e Saída', 'icon' => '⇄', 'group' => 'Livros'],
+        ['id' => 'reports', 'label' => 'Relatórios', 'icon' => 'R', 'group' => 'Livros'],
+        ['id' => 'purchases', 'label' => 'Compras', 'icon' => 'C', 'group' => 'Compras'],
+        ['id' => 'classes', 'label' => 'Turmas', 'icon' => 'T', 'group' => 'Escola'],
+        ['id' => 'suppliers', 'label' => 'Fornecedores', 'icon' => 'F', 'group' => 'Escola'],
+        ['id' => 'people', 'label' => 'Equipe', 'icon' => 'E', 'group' => 'Escola'],
+    ],
+
+    'default_supplier' => [
+        'name' => 'Editora Senai',
+        'contact_name' => 'Atendimento Corporativo',
+        'email' => 'pedidos@editorasenai.com.br',
+        'phone' => '(11) 3000-0101',
+        'lead_time_days' => 5,
     ],
 
     'books' => [

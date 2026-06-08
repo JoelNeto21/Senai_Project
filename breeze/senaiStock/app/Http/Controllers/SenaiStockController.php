@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Book;
 use App\Models\Cargo;
+use App\Models\Curso;
 use App\Models\Funcionario;
+use App\Support\EmployeeRole;
 use App\Models\Movement;
 use App\Models\PurchaseOrder;
 use App\Models\StockNotification;
@@ -40,6 +42,9 @@ class SenaiStockController extends Controller
         'suppliers',
         'classes',
         'people',
+        'settings',
+        'stock',
+        'reports',
     ];
 
     public function index(Request $request, string $view = 'insights'): View
@@ -83,10 +88,8 @@ class SenaiStockController extends Controller
             ->limit(60)
             ->get();
 
-        $navigationItems = collect(config('senaistock.navigation_items', []))
-            ->filter(fn (array $item) => in_array($roleKey, $item['roles'] ?? ['administrador', 'almoxarife'], true))
-            ->values()
-            ->all();
+        $role = EmployeeRole::fromSession($request); $navigationItems = EmployeeRole::navigationFor($role); $employeeRole = $role; $permissions = EmployeeRole::permissions($role);
+        $employee = $request->session()->get('employee', []);
         $turmas = Turma::with('curso')->orderBy('nome_turma')->get();
         $cargos = Cargo::orderBy('Nome_cargo')->get();
         $funcionarios = Funcionario::with('cargo')->orderBy('Nome')->get();
@@ -97,6 +100,8 @@ class SenaiStockController extends Controller
             'activeView' => $view,
             'navigationItems' => $navigationItems,
             'employee' => $employee,
+            'employeeRole' => $employeeRole,
+            'permissions' => $permissions,
             'books' => $books,
             'purchaseOrders' => $purchaseOrders,
             'purchaseCart' => $purchaseCart,
@@ -136,8 +141,67 @@ class SenaiStockController extends Controller
         return back()->with('status', "{$data['quantity']} unidade(s) recebidas para {$book->title}.");
     }
 
-    public function storeNewMaterial(Request $request, StockService $stockService): RedirectResponse
+    public function receiveViaApi(Request $request, Book $book): JsonResponse
     {
+        $data = $request->validate([
+            'quantity' => ['required', 'integer', 'min:1'],
+            'notes' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        DB::transaction(function () use ($book, $data, $request): void {
+            $book->increment('quantity', (int) $data['quantity']);
+
+            Movement::create([
+                'type' => 'entrada',
+                'book_id' => $book->id,
+                'funcionario_id' => $request->session()->get('employee.id'),
+                'quantity' => (int) $data['quantity'],
+                'justification' => $data['notes'] ?: 'Recebimento de material existente.',
+            ]);
+        });
+
+        return response()->json([
+            'message' => "{$data['quantity']} unidade(s) recebidas para {$book->title}.",
+        ]);
+    }
+
+    public function withdrawViaApi(Request $request, Book $book): JsonResponse
+    {
+        $data = $request->validate([
+            'quantity' => ['required', 'integer', 'min:1'],
+            'justification' => ['required', 'string', 'max:1000'],
+        ]);
+
+        DB::transaction(function () use ($book, $data, $request): void {
+            if ((int) $data['quantity'] > $book->quantity) {
+                throw ValidationException::withMessages([
+                    'quantity' => "Saldo insuficiente para {$book->title}. Disponível: {$book->quantity}.",
+                ]);
+            }
+
+            $book->decrement('quantity', (int) $data['quantity']);
+
+            Movement::create([
+                'type' => 'saida',
+                'book_id' => $book->id,
+                'funcionario_id' => $request->session()->get('employee.id'),
+                'quantity' => (int) $data['quantity'],
+                'justification' => $data['justification'],
+            ]);
+        });
+
+        return response()->json([
+            'message' => "{$data['quantity']} unidade(s) retiradas do estoque de {$book->title}.",
+        ]);
+    }
+
+    public function storeNewMaterial(Request $request): RedirectResponse
+    {
+        $role = EmployeeRole::fromSession($request);
+        if (!EmployeeRole::can($role, 'stock.store_new')) {
+            abort(403, 'Seu cargo nao tem permissao para cadastrar novos materiais.');
+        }
+
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'isbn' => ['nullable', 'string', 'max:100', 'unique:books,isbn'],
@@ -202,6 +266,7 @@ class SenaiStockController extends Controller
 
     public function fulfillTeacherRequest(Request $request, int $teacherRequest, TeacherRequestService $service): RedirectResponse
     {
+        $role = EmployeeRole::fromSession($request);
         $teacherRequestModel = $this->findTeacherRequestModel($teacherRequest);
         $requestData = $this->findTeacherRequest($request, $teacherRequest);
 
@@ -211,9 +276,52 @@ class SenaiStockController extends Controller
             ]);
         }
 
-        if ($teacherRequestModel) {
-            $service->fulfill($teacherRequestModel->load('book'), $request->session()->get('employee.id'));
+        $requestedQty = (int) $requestData['qty'];
+        $availableQty = (int) ($requestData['available'] ?? 0);
+        $missing = max($requestedQty - $availableQty, 0);
+
+        // Almoxarife can only separate what's currently available in stock.
+        // If the request needs more than available, the missing part must
+        // go through the purchase order flow for the Coordenador to approve.
+        $canApprovePurchases = EmployeeRole::can($role, 'purchases.approve');
+
+        if ($missing > 0 && !$canApprovePurchases) {
+
+            throw ValidationException::withMessages([
+                'teacher_request' => "Saldo insuficiente para separar {$requestData['title']}. Faltam {$missing} unidade(s) - gere um pedido de compra para aprovacao do coordenador.",
+            ]);
         }
+
+        DB::transaction(function () use ($teacherRequestModel, $requestData, $missing, $requestedQty, $canApprovePurchases, $request): void {
+            $book = Book::query()->lockForUpdate()->findOrFail($requestData['bookId']);
+
+            if ($missing > 0 && $canApprovePurchases) {
+                $separated = min($requestedQty, $book->quantity);
+                if ($separated > 0) {
+                    $book->decrement('quantity', $separated);
+                }
+            } else {
+                if ($requestedQty > $book->quantity) {
+                    throw ValidationException::withMessages([
+                        'teacher_request' => "Saldo insuficiente para separar {$book->title}. Disponivel: {$book->quantity}.",
+                    ]);
+                }
+                $separated = $requestedQty;
+                $book->decrement('quantity', $separated);
+            }
+
+            if ($separated > 0) {
+                Movement::create([
+                    'type' => 'saida',
+                    'book_id' => $book->id,
+                    'funcionario_id' => $request->session()->get('employee.id'),
+                    'quantity' => $separated,
+                    'justification' => 'Pedido do professor ' . $requestData['teacher'] . ' para ' . $requestData['turma'] . '.',
+                ]);
+            }
+
+            $teacherRequestModel?->update(['status' => $missing > 0 ? 'compra' : 'atendido']);
+        });
 
         if (!$teacherRequestModel) {
             $processed = collect($request->session()->get('processed_teacher_requests', []))
@@ -311,8 +419,15 @@ class SenaiStockController extends Controller
 
     public function storeTeacherRequest(Request $request, TeacherRequestService $service): RedirectResponse
     {
+        $role = EmployeeRole::fromSession($request);
+        $employee = $request->session()->get('employee', []);
+
+        if (!EmployeeRole::can($role, 'teacher_requests.create')) {
+            abort(403, 'Seu cargo nao tem permissao para criar pedidos.');
+        }
+
         $data = $request->validate([
-            'teacher_name' => ['required', 'string', 'max:255'],
+            'teacher_name' => [$role === EmployeeRole::PROFESSOR ? 'nullable' : 'required', 'string', 'max:255'],
             'teacher_email' => ['nullable', 'email', 'max:255'],
             'class_name' => ['required', 'string', 'max:255'],
             'course_name' => ['nullable', 'string', 'max:255'],
@@ -322,7 +437,27 @@ class SenaiStockController extends Controller
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $service->create($data);
+        $book = Book::findOrFail($data['book_id']);
+
+        // For Professor role, use the logged-in user name automatically.
+        $teacherName = $role === EmployeeRole::PROFESSOR
+            ? ($employee['name'] ?? 'Professor')
+            : $data['teacher_name'];
+        $teacherEmail = $role === EmployeeRole::PROFESSOR
+            ? ($data['teacher_email'] ?? ($employee['email'] ?? null))
+            : ($data['teacher_email'] ?? null);
+
+        TeacherRequest::create([
+            'teacher_name' => $teacherName,
+            'teacher_email' => $teacherEmail,
+            'class_name' => $data['class_name'],
+            'subject' => $book->subject,
+            'book_id' => $book->id,
+            'title' => $book->title,
+            'quantity' => (int) $data['quantity'],
+            'due_date' => $data['due_date'] ?? null,
+            'notes' => $data['notes'] ?? null,
+        ]);
 
         return redirect()
             ->route('senai.dashboard', ['view' => 'teacher_requests'])
@@ -416,6 +551,17 @@ class SenaiStockController extends Controller
 
     public function markPurchaseOrderDelivered(Request $request, PurchaseOrder $purchaseOrder): RedirectResponse
     {
+        $role = EmployeeRole::fromSession($request);
+        if (!EmployeeRole::can($role, 'purchases.deliver')) {
+            abort(403, 'Seu cargo nao tem permissao para esta acao.');
+        }
+
+        if ($purchaseOrder->status !== 'aprovado') {
+            throw ValidationException::withMessages([
+                'purchase_order' => 'Este pedido precisa ser aprovado pelo coordenador antes do recebimento.',
+            ]);
+        }
+
         DB::transaction(function () use ($request, $purchaseOrder): void {
             $purchaseOrder->load('items.book');
 
@@ -441,6 +587,90 @@ class SenaiStockController extends Controller
         return redirect()
             ->route('senai.dashboard', ['view' => 'history'])
             ->with('status', "Ordem {$purchaseOrder->order_number} marcada como entregue.");
+    }
+
+    public function approvePurchaseOrder(Request $request, PurchaseOrder $purchaseOrder): RedirectResponse
+    {
+        $role = EmployeeRole::fromSession($request);
+        if (!EmployeeRole::can($role, 'purchases.approve')) {
+            abort(403, 'Seu cargo nao tem permissao para aprovar pedidos de compra.');
+        }
+
+        if ($purchaseOrder->status !== 'pendente_aprovacao' && $purchaseOrder->status !== 'aguardando') {
+            throw ValidationException::withMessages([
+                'purchase_order' => 'Este pedido nao esta aguardando aprovacao.',
+            ]);
+        }
+
+        $purchaseOrder->update(['status' => 'aprovado']);
+
+        return redirect()
+            ->route('senai.dashboard', ['view' => 'history'])
+            ->with('status', "Pedido {$purchaseOrder->order_number} aprovado para compra.");
+    }
+
+    public function storeTurma(Request $request): RedirectResponse
+    {
+        $role = EmployeeRole::fromSession($request);
+        if (!EmployeeRole::can($role, 'classes.manage')) {
+            abort(403, 'Seu cargo nao tem permissao para cadastrar turmas.');
+        }
+
+        $data = $request->validate([
+            'nome_turma' => ['required', 'string', 'max:255'],
+            'curso_id' => ['nullable', 'integer', 'exists:cursos,id'],
+            'nome_curso' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        if (blank($data['curso_id'] ?? null) && blank($data['nome_curso'] ?? null)) {
+            throw ValidationException::withMessages([
+                'nome_curso' => 'Informe um curso existente ou o nome de um novo curso.',
+            ]);
+        }
+
+        $cursoId = $data['curso_id'] ?? null;
+
+        if (!$cursoId) {
+            $curso = Curso::firstOrCreate(['nome_curso' => trim($data['nome_curso'])]);
+            $cursoId = $curso->id;
+        }
+
+        Turma::create([
+            'nome_turma' => $data['nome_turma'],
+            'curso_id' => $cursoId,
+        ]);
+
+        return redirect()
+            ->route('senai.dashboard', ['view' => 'classes'])
+            ->with('status', 'Turma cadastrada com sucesso.');
+    }
+
+    public function storeSupplier(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'contact_name' => ['nullable', 'string', 'max:255'],
+            'email' => ['nullable', 'email', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:30'],
+            'lead_time_days' => ['required', 'integer', 'min:1', 'max:120'],
+        ]);
+
+        Supplier::create($data + ['status' => 'ativo']);
+
+        return redirect()
+            ->route('senai.dashboard', ['view' => 'suppliers'])
+            ->with('status', 'Fornecedor cadastrado.');
+    }
+
+    public function updateSupplierStatus(Request $request, Supplier $supplier): RedirectResponse
+    {
+        $data = $request->validate([
+            'status' => ['required', 'in:ativo,inativo'],
+        ]);
+
+        $supplier->update(['status' => $data['status']]);
+
+        return back()->with('status', 'Status do fornecedor atualizado.');
     }
 
     public function addCriticalBookToCart(Request $request, Book $book): RedirectResponse
