@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureEmployeeRole;
 use App\Http\Middleware\EnsureFuncionarioAuthenticated;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -15,6 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'employee.auth' => EnsureFuncionarioAuthenticated::class,
+            'employee.role' => EnsureEmployeeRole::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

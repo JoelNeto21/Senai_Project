@@ -13,8 +13,14 @@ return new class extends Migration
     {
         Schema::create('estoques', function (Blueprint $table) {
             $table->id();
-            $table->string('Quantidade');
-            $table->foreignId('Id_livro_FK')->constraint('Livro');
+            
+           
+            $table->integer('Quantidade'); 
+            
+            
+            $table->unsignedBigInteger('Id_livro_FK');
+            $table->foreign('Id_livro_FK')->references('id')->on('books')->onDelete('cascade');
+            
             $table->timestamps();
         });
     }

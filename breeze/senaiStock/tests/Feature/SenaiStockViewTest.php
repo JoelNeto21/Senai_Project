@@ -202,26 +202,41 @@ class SenaiStockViewTest extends TestCase
     {
         $validViews = [
             'insights',
-            'overview',
             'teacher_requests',
             'purchases',
-            'history',
-            'dashboard',
             'library',
-            'receive',
-            'withdraw',
-            'movements',
+            'stock',
+            'reports',
             'alerts',
             'suppliers',
             'classes',
             'people',
-            'settings',
         ];
 
         foreach ($validViews as $view) {
             $response = $this->get(route('senai.dashboard', ['view' => $view]));
             $this->assertEquals(200, $response->getStatusCode(), "View $view failed to render");
             $response->assertViewHas('activeView', $view);
+        }
+    }
+
+    /**
+     * Test that legacy view URLs redirect to consolidated pages
+     */
+    public function test_legacy_views_redirect_to_consolidated_pages(): void
+    {
+        $redirects = [
+            'overview' => '/dashboard/reports',
+            'dashboard' => '/dashboard/reports',
+            'receive' => '/dashboard/stock?tab=entrada',
+            'withdraw' => '/dashboard/stock?tab=saida',
+            'movements' => '/dashboard/stock?tab=historico',
+            'history' => '/dashboard/purchases?tab=historico',
+        ];
+
+        foreach ($redirects as $view => $expectedTarget) {
+            $response = $this->get(route('senai.dashboard', ['view' => $view]));
+            $response->assertRedirect($expectedTarget);
         }
     }
 
@@ -238,9 +253,9 @@ class SenaiStockViewTest extends TestCase
     }
 
     /**
-     * Test that default view is insights
+     * Test that default view is insights for coordenador
      */
-    public function test_default_view_is_insights(): void
+    public function test_default_view_is_insights_for_coordenador(): void
     {
         // Act
         $response = $this->get('/dashboard');
@@ -248,6 +263,129 @@ class SenaiStockViewTest extends TestCase
         // Assert
         $response->assertStatus(200);
         $response->assertViewHas('activeView', 'insights');
+    }
+
+    public function test_professor_is_redirected_from_admin_views(): void
+    {
+        $this->withEmployeeSession('Professor');
+
+        $response = $this->get(route('senai.dashboard', ['view' => 'people']));
+
+        $response->assertRedirect(route('senai.dashboard', ['view' => 'teacher_requests']));
+    }
+
+    public function test_professor_only_sees_teacher_requests_navigation(): void
+    {
+        $this->withEmployeeSession('Professor');
+
+        $response = $this->get(route('senai.dashboard', ['view' => 'teacher_requests']));
+
+        $response->assertStatus(200);
+        $navigationItems = $response->viewData('navigationItems');
+        $this->assertCount(1, $navigationItems);
+        $this->assertSame('teacher_requests', $navigationItems[0]['id']);
+    }
+
+    public function test_almoxarife_cannot_access_equipe(): void
+    {
+        $this->withEmployeeSession('Almoxarife');
+
+        $response = $this->get(route('senai.dashboard', ['view' => 'people']));
+
+        $response->assertRedirect(route('senai.dashboard', ['view' => 'teacher_requests']));
+    }
+
+    public function test_almoxarife_can_access_book_areas(): void
+    {
+        $this->withEmployeeSession('Almoxarife');
+
+        foreach (['library', 'stock', 'reports'] as $view) {
+            $response = $this->get(route('senai.dashboard', ['view' => $view]));
+
+            $response->assertStatus(200);
+            $response->assertViewHas('activeView', $view);
+        }
+    }
+
+    public function test_almoxarife_navigation_hides_unavailable_admin_and_purchase_areas(): void
+    {
+        $this->withEmployeeSession('Almoxarife');
+
+        $response = $this->get(route('senai.dashboard', ['view' => 'library']));
+
+        $response->assertStatus(200);
+        $visibleViews = collect($response->viewData('navigationItems'))->pluck('id')->all();
+
+        $this->assertContains('library', $visibleViews);
+        $this->assertContains('stock', $visibleViews);
+        $this->assertContains('reports', $visibleViews);
+        $this->assertNotContains('purchases', $visibleViews);
+        $this->assertNotContains('classes', $visibleViews);
+        $this->assertNotContains('people', $visibleViews);
+    }
+
+    public function test_almoxarife_permissions_hide_purchase_approval_and_admin_creation(): void
+    {
+        $this->withEmployeeSession('Almoxarife');
+
+        $response = $this->get(route('senai.dashboard', ['view' => 'library']));
+
+        $response->assertStatus(200);
+        $permissions = $response->viewData('permissions');
+
+        $this->assertTrue($permissions['stock.receive']);
+        $this->assertTrue($permissions['stock.withdraw']);
+        $this->assertTrue($permissions['stock.store_new']);
+        $this->assertFalse($permissions['teacher_requests.purchase']);
+        $this->assertFalse($permissions['purchases.create']);
+        $this->assertFalse($permissions['alerts.purchase']);
+        $this->assertFalse($permissions['people.manage']);
+        $this->assertFalse($permissions['classes.manage']);
+    }
+
+    public function test_almoxarife_cannot_submit_purchase_approval_actions(): void
+    {
+        $this->withEmployeeSession('Almoxarife');
+
+        $this->post(route('stock.teacher-requests.purchase', 1))->assertForbidden();
+        $this->post(route('stock.purchases.generate'), [
+            'items' => json_encode([
+                [
+                    'type' => 'restock',
+                    'book_id' => 1,
+                    'quantity' => 1,
+                    'justification' => 'Teste',
+                ],
+            ]),
+        ])->assertForbidden();
+    }
+
+    public function test_coordenador_can_create_turma(): void
+    {
+        $curso = Curso::factory()->create(['nome_curso' => 'Elétrica']);
+
+        $response = $this->post(route('stock.classes.store'), [
+            'nome_turma' => 'ELE-1A',
+            'curso_id' => $curso->id,
+        ]);
+
+        $response->assertRedirect(route('senai.dashboard', ['view' => 'classes']));
+        $this->assertDatabaseHas('turmas', [
+            'nome_turma' => 'ELE-1A',
+            'curso_id' => $curso->id,
+        ]);
+    }
+
+    public function test_professor_cannot_create_turma(): void
+    {
+        $this->withEmployeeSession('Professor');
+
+        $response = $this->post(route('stock.classes.store'), [
+            'nome_turma' => 'ELE-1A',
+            'nome_curso' => 'Elétrica',
+        ]);
+
+        $response->assertForbidden();
     }
 
     /**

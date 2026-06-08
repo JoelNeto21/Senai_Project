@@ -10,26 +10,26 @@ return new class extends Migration
     {
         Schema::create('requisicoes', function (Blueprint $table) {
             $table->id();
-
+            
             $table->date('data_requisicao');
 
-            // FK Livro
-            $table->foreignId('livro_id')
-                ->constrained('livros')
+            // CORREÇÃO: Removido 'titulo_livro' e alterado para referenciar 'books' em vez de 'livros'
+            $table->foreignId('book_id')
+                ->constrained('books')
                 ->onDelete('cascade');
-            $table->string('titulo_livro');
+            
             $table->integer('quantidade_livro');
 
-            // FK Turma
+            // CORREÇÃO: Removido 'nome_turma'. O ID já é suficiente para obter o nome via Eloquent.
             $table->foreignId('turma_id')
                 ->constrained('turmas')
                 ->onDelete('cascade');
-            $table->string('nome_turma');
 
-            // FK Funcionário
-            $table->foreignId('funcionario_id')
-                ->constrained('funcionarios')
-                ->onDelete('cascade');
+            $table->unsignedBigInteger('funcionario_id');
+            $table->foreign('funcionario_id')
+                  ->references('Id_funcionario')
+                  ->on('funcionarios')
+                  ->onDelete('cascade');
 
             $table->timestamps();
         });
