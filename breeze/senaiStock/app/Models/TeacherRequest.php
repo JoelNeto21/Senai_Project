@@ -13,6 +13,7 @@ class TeacherRequest extends Model
 
     protected $fillable = [
         'protocol',
+        'requested_by_funcionario_id',
         'teacher_name',
         'teacher_email',
         'class_name',
@@ -21,6 +22,7 @@ class TeacherRequest extends Model
         'book_id',
         'title',
         'quantity',
+        'fulfilled_quantity',
         'status',
         'due_date',
         'notes',
@@ -32,7 +34,9 @@ class TeacherRequest extends Model
 
     protected $casts = [
         'book_id' => 'integer',
+        'requested_by_funcionario_id' => 'integer',
         'quantity' => 'integer',
+        'fulfilled_quantity' => 'integer',
         'due_date' => 'date',
         'approved_at' => 'datetime',
         'prepared_at' => 'datetime',
@@ -43,6 +47,16 @@ class TeacherRequest extends Model
     public function book(): BelongsTo
     {
         return $this->belongsTo(Book::class);
+    }
+
+    public function requester(): BelongsTo
+    {
+        return $this->belongsTo(Funcionario::class, 'requested_by_funcionario_id', 'Id_funcionario');
+    }
+
+    public function purchaseOrderItems(): HasMany
+    {
+        return $this->hasMany(PurchaseOrderItem::class);
     }
 
     public function messages(): HasMany

@@ -10,7 +10,7 @@ SenaiStock é uma aplicação Laravel para controle profissional do estoque de l
 
 ## Problema Resolvido
 
-Unidades com alto volume de turmas precisam saber o saldo real de livros no almoxarifado. Sem controle transacional, materiais podem faltar em momentos críticos. O SenaiStock reduz esse risco com baixa validada, protocolos de solicitação, indicadores de estoque mínimo e rastreabilidade das movimentações.
+Unidades com alto volume de turmas precisam saber o saldo real de livros no estoque. Sem controle transacional, materiais podem faltar em momentos críticos. O SenaiStock reduz esse risco com baixa validada, protocolos de solicitação, indicadores de estoque mínimo e rastreabilidade das movimentações.
 
 ## Stack
 
@@ -29,20 +29,18 @@ Unidades com alto volume de turmas precisam saber o saldo real de livros no almo
 - Entrada de estoque com incremento automático e histórico de movimentação.
 - Saída de estoque com transação, lock de linha e bloqueio de estoque negativo.
 - Dashboard com indicadores, acervo, alertas, compras, fornecedores, turmas e equipe.
-- Área pública `/solicitar-livros` para professores sem login.
-- Protocolo público de acompanhamento em `/solicitacoes/{protocolo}`.
-- Aprovação, rejeição, separação, atendimento e mensagens personalizadas do almoxarifado.
+- Aprovação, rejeição, separação, atendimento e mensagens personalizadas da coordenação.
 - Notificações internas e e-mails automáticos para professores.
-- Testes automatizados cobrindo APIs, CRUDs, estoque e fluxo professor-almoxarifado.
+- Testes automatizados cobrindo APIs, CRUDs, estoque e fluxo professor-coordenação.
 
 ## Arquitetura
 
 ```mermaid
 flowchart LR
-    Professor[Professor sem login] --> PublicForm[Área pública de solicitação]
-    PublicForm --> TeacherRequest[TeacherRequest + protocolo]
+    Professor[Professor autenticado] --> TeacherRequest[TeacherRequest + protocolo]
+    Coordenador[Coordenador autenticado] --> TeacherRequest
     TeacherRequest --> Notification[StockNotification interna]
-    Almox[Almoxarifado autenticado] --> Decision{Aprovar?}
+    Coordenador[Coordenador com acesso total] --> Decision{Aprovar compra?}
     Decision -->|Sim| StockService[StockService transacional]
     Decision -->|Não| Message[Mensagem + e-mail]
     StockService --> Book[Saldo do livro]
@@ -55,7 +53,6 @@ flowchart LR
 ```text
 app/
   Http/Controllers/
-    PublicTeacherRequestController.php
     SenaiStockController.php
   Mail/
     TeacherRequestStatusMail.php
@@ -85,7 +82,7 @@ tests/
 sequenceDiagram
     participant P as Professor
     participant S as SenaiStock
-    participant A as Almoxarifado
+    participant A as Coordenação
     participant E as E-mail
 
     P->>S: Solicita livros sem login
@@ -124,7 +121,7 @@ DB_DATABASE=senaiStk
 MAIL_MAILER=smtp
 MAIL_HOST=127.0.0.1
 MAIL_PORT=1025
-MAIL_FROM_ADDRESS=almoxarifado@senai.local
+MAIL_FROM_ADDRESS=coordenacao@senai.local
 QUEUE_CONNECTION=sync
 ```
 
@@ -137,7 +134,6 @@ Após `php artisan db:seed`:
 | Perfil | NIF | CPF |
 |---|---:|---|
 | Administrador | 111111 | 11111111111 |
-| Almoxarifado | 123456 | 12345678900 |
 | Usuário demo | 654321 | 98765432100 |
 
 ## Comandos Úteis
@@ -176,7 +172,7 @@ php artisan config:clear
 
 ## Roadmap
 
-- Permissões granulares por perfil ADM/Almoxarifado.
+- Permissões granulares entre Coordenador e Professor.
 - Exportação PDF/Excel de relatórios.
 - Painel dedicado de auditoria e logs de acesso.
 - Integração com cadastro institucional de turmas/professores.

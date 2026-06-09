@@ -20,7 +20,7 @@
                         <span class="text-white text-2xl font-bold">S</span>
                     </div>
                     <h1 class="text-2xl font-semibold tracking-tight text-gray-900">Acesso Interno</h1>
-                    <p class="text-gray-500 mt-1 text-sm">Almoxarifado SenaiStock</p>
+                    <p class="text-gray-500 mt-1 text-sm">Gestão de livros SenaiStock</p>
                 </div>
 
                 <form method="POST" action="{{ route('employee.authenticate') }}" class="bg-white rounded-3xl border border-gray-100 shadow-sm p-8 space-y-6">
@@ -60,7 +60,7 @@
                     </button>
 
                     <p class="text-xs text-center text-gray-400 pt-2">
-                        Apenas funcionários autorizados. Professores devem usar a <a href="{{ route('teacher-requests.create') }}" class="text-red-600 hover:text-red-700 font-medium">área pública</a>.
+                        Todos os funcionários cadastrados podem entrar com seu perfil.
                     </p>
                 </form>
             </div>

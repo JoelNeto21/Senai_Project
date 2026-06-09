@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Funcionario;
-use App\Models\Cargo; // Importante para carregar os cargos no formulário
+use App\Models\Cargo;
+use App\Models\Funcionario; // Importante para carregar os cargos no formulário
 use Illuminate\Http\Request;
 
 class FuncionarioController extends Controller
@@ -18,6 +18,7 @@ class FuncionarioController extends Controller
         if (view()->exists('funcionarios.index')) {
             $viewPath = 'funcionarios.index';
         }
+
         return view($viewPath, compact('funcionarios'));
     }
 
@@ -30,6 +31,7 @@ class FuncionarioController extends Controller
         if (view()->exists('funcionarios.create')) {
             $viewPath = 'funcionarios.create';
         }
+
         return view($viewPath, compact('cargos'));
     }
 
@@ -45,10 +47,13 @@ class FuncionarioController extends Controller
         ]);
 
         // Cria o registro usando o $guarded = [] que você definiu no Model
-        Funcionario::create($request->only(['NIF', 'Nome', 'Cpf', 'Id_cargo_FK']));
+        Funcionario::create([
+            ...$request->only(['NIF', 'Nome', 'Cpf', 'Id_cargo_FK']),
+            'password' => 'senai123',
+        ]);
 
         return redirect()->route('funcionarios.index')
-                         ->with('success', 'Funcionário cadastrado com sucesso!');
+            ->with('success', 'Funcionário cadastrado com sucesso!');
     }
 
     // 4. Mostrar o formulário de edição
@@ -60,6 +65,7 @@ class FuncionarioController extends Controller
         if (view()->exists('funcionarios.edit')) {
             $viewPath = 'funcionarios.edit';
         }
+
         return view($viewPath, compact('funcionario', 'cargos'));
     }
 
@@ -67,23 +73,24 @@ class FuncionarioController extends Controller
     public function update(Request $request, Funcionario $funcionario)
     {
         $request->validate([
-            'NIF' => 'required|integer|unique:funcionarios,NIF,' . $funcionario->Id_funcionario . ',Id_funcionario',
+            'NIF' => 'required|integer|unique:funcionarios,NIF,'.$funcionario->Id_funcionario.',Id_funcionario',
             'Nome' => 'required|string|max:255',
-            'Cpf' => 'required|string|unique:funcionarios,Cpf,' . $funcionario->Id_funcionario . ',Id_funcionario',
+            'Cpf' => 'required|string|unique:funcionarios,Cpf,'.$funcionario->Id_funcionario.',Id_funcionario',
             'Id_cargo_FK' => 'required|exists:cargos,Id_cargo',
         ]);
 
         $funcionario->update($request->only(['NIF', 'Nome', 'Cpf', 'Id_cargo_FK']));
 
         return redirect()->route('funcionarios.index')
-                         ->with('success', 'Dados atualizados!');
+            ->with('success', 'Dados atualizados!');
     }
 
     // 6. Excluir o funcionário
     public function destroy(Funcionario $funcionario)
     {
         $funcionario->delete();
+
         return redirect()->route('funcionarios.index')
-                         ->with('success', 'Funcionário removido.');
+            ->with('success', 'Funcionário removido.');
     }
 }

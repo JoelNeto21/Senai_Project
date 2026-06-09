@@ -1,15 +1,13 @@
 <?php
 
-namespace Database\Seeders;
-
 use App\Models\Cargo;
 use App\Models\Funcionario;
-use Illuminate\Database\Seeder;
+use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
-class CargoSeeder extends Seeder
+return new class extends Migration
 {
-    public function run(): void
+    public function up(): void
     {
         DB::transaction(function (): void {
             $allowedNames = ['Professor', 'Coordenador'];
@@ -34,6 +32,15 @@ class CargoSeeder extends Seeder
                     ->update(['Id_cargo_FK' => $coordenador->Id_cargo]);
                 $cargo->delete();
             });
+
+            Funcionario::query()->each(
+                fn (Funcionario $funcionario) => $funcionario->update(['password' => 'senai123'])
+            );
         });
     }
-}
+
+    public function down(): void
+    {
+        //
+    }
+};

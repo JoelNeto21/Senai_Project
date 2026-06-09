@@ -3,29 +3,23 @@
 use App\Http\Controllers\CargoController;
 use App\Http\Controllers\EmployeeAuthController;
 use App\Http\Controllers\FuncionarioController;
-use App\Http\Controllers\SenaiStockController;
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\PublicTeacherRequestController;
-use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\SenaiStockController;
+use App\Support\EmployeeRole;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 
 Route::get('/', function (Request $request) {
     return $request->session()->has('employee.id')
-        ? redirect()->route('dashboard')
+        ? redirect()->route('senai.dashboard', [
+            'view' => EmployeeRole::defaultView($request->session()->get('employee.cargo')),
+        ])
         : redirect()->route('employee.login');
 });
 
 Route::get('/entrada', [EmployeeAuthController::class, 'create'])->name('employee.login');
 Route::post('/entrada', [EmployeeAuthController::class, 'store'])->name('employee.authenticate');
 Route::post('/sair', [EmployeeAuthController::class, 'destroy'])->name('employee.logout');
-
-Route::get('/solicitar-livros', [PublicTeacherRequestController::class, 'create'])
-    ->name('teacher-requests.create');
-Route::post('/solicitar-livros', [PublicTeacherRequestController::class, 'store'])
-    ->middleware('throttle:teacher-requests')
-    ->name('teacher-requests.store');
-Route::get('/solicitacoes/{protocol}', [PublicTeacherRequestController::class, 'show'])
-    ->name('teacher-requests.show');
 
 Route::middleware('employee.auth')->group(function () {
     Route::get('/dashboard', [SenaiStockController::class, 'index'])
@@ -42,28 +36,34 @@ Route::middleware('employee.auth')->group(function () {
     Route::post('/estoque/retiradas/lote', [SenaiStockController::class, 'withdrawBatch'])
         ->name('stock.withdraw.batch');
     Route::post('/estoque/pedidos-professores/{teacherRequest}/separar', [SenaiStockController::class, 'fulfillTeacherRequest'])
+        ->middleware('employee.role:Coordenador')
         ->name('stock.teacher-requests.fulfill');
     Route::post('/estoque/pedidos-professores/{teacherRequest}/aprovar', [SenaiStockController::class, 'approveTeacherRequest'])
-        ->middleware('employee.role:administrador')
+        ->middleware('employee.role:Coordenador')
         ->name('stock.teacher-requests.approve');
     Route::post('/estoque/pedidos-professores/{teacherRequest}/rejeitar', [SenaiStockController::class, 'rejectTeacherRequest'])
-        ->middleware('employee.role:administrador')
+        ->middleware('employee.role:Coordenador')
         ->name('stock.teacher-requests.reject');
     Route::post('/estoque/pedidos-professores/{teacherRequest}/notificar', [SenaiStockController::class, 'notifyTeacherRequest'])
+        ->middleware('employee.role:Coordenador')
         ->name('stock.teacher-requests.notify');
     Route::post('/estoque/pedidos-professores/{teacherRequest}/comprar', [SenaiStockController::class, 'addTeacherRequestToPurchase'])
-        ->middleware('employee.role:administrador')
+        ->middleware('employee.role:Coordenador')
         ->name('stock.teacher-requests.purchase');
     Route::post('/estoque/pedidos-professores', [SenaiStockController::class, 'storeTeacherRequest'])
         ->name('stock.teacher-requests.store');
     Route::post('/estoque/compras/gerar', [SenaiStockController::class, 'generatePurchaseOrder'])
-        ->middleware('employee.role:administrador')
+        ->middleware('employee.role:Coordenador')
         ->name('stock.purchases.generate');
     Route::post('/estoque/compras/{purchaseOrder}/aprovar', [SenaiStockController::class, 'approvePurchaseOrder'])
+        ->middleware('employee.role:Coordenador')
         ->name('stock.purchases.approve');
     Route::post('/estoque/compras/{purchaseOrder}/entregar', [SenaiStockController::class, 'markPurchaseOrderDelivered'])
-        ->middleware('employee.role:administrador')
+        ->middleware('employee.role:Coordenador')
         ->name('stock.purchases.deliver');
+    Route::post('/estoque/compras/{purchaseOrder}/itens/{purchaseOrderItem}/receber', [SenaiStockController::class, 'receivePurchaseOrderItem'])
+        ->middleware('employee.role:Coordenador')
+        ->name('stock.purchases.items.receive');
     Route::post('/estoque/alertas/livros/{book}/comprar', [SenaiStockController::class, 'addCriticalBookToCart'])
         ->name('stock.alerts.purchase');
     Route::post('/estoque/turmas', [SenaiStockController::class, 'storeTurma'])
@@ -86,7 +86,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-Route::get('/teste', function (){
+Route::get('/teste', function () {
     return view('senai-stock.index', [
         'activeView' => 'insights',
         'navigationItems' => [],
@@ -100,6 +100,7 @@ Route::get('/teste', function (){
         'funcionarios' => collect(),
         'suppliers' => collect(),
         'notifications' => collect(),
+        'professorNotifications' => collect(),
         'movements' => collect(),
         'alerts' => collect(),
         'stockCriticalThreshold' => 8,

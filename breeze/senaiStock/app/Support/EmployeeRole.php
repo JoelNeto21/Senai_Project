@@ -6,8 +6,6 @@ use Illuminate\Http\Request;
 
 class EmployeeRole
 {
-    public const ALMOXARIFE = 'Almoxarife';
-
     public const COORDENADOR = 'Coordenador';
 
     public const PROFESSOR = 'Professor';
@@ -20,7 +18,7 @@ class EmployeeRole
     public static function defaultView(?string $role): string
     {
         return match ($role) {
-            self::PROFESSOR, self::ALMOXARIFE => 'teacher_requests',
+            self::PROFESSOR => 'teacher_requests',
             default => 'insights',
         };
     }
@@ -32,14 +30,6 @@ class EmployeeRole
     {
         return match ($role) {
             self::PROFESSOR => ['teacher_requests'],
-            self::ALMOXARIFE => [
-                'teacher_requests',
-                'library',
-                'stock',
-                'reports',
-                'alerts',
-                'purchases',
-            ],
             self::COORDENADOR => [
                 'insights',
                 'alerts',
@@ -77,6 +67,10 @@ class EmployeeRole
 
     public static function can(?string $role, string $ability): bool
     {
+        if ($role === self::COORDENADOR) {
+            return true;
+        }
+
         $matrix = [
             self::PROFESSOR => [
                 'teacher_requests.create' => true,
@@ -93,36 +87,6 @@ class EmployeeRole
                 'classes.manage' => false,
                 'suppliers.manage' => false,
             ],
-            self::ALMOXARIFE => [
-                'teacher_requests.create' => true,
-                'teacher_requests.fulfill' => true,
-                'teacher_requests.purchase' => true,
-                'purchases.create' => true,
-                'purchases.approve' => false,
-                'purchases.deliver' => true,
-                'stock.receive' => true,
-                'stock.withdraw' => true,
-                'stock.store_new' => true,
-                'alerts.purchase' => false,
-                'people.manage' => false,
-                'classes.manage' => false,
-                'suppliers.manage' => false,
-            ],
-            self::COORDENADOR => [
-                'teacher_requests.create' => true,
-                'teacher_requests.fulfill' => true,
-                'teacher_requests.purchase' => true,
-                'purchases.create' => true,
-                'purchases.approve' => true,
-                'purchases.deliver' => false,
-                'stock.receive' => true,
-                'stock.withdraw' => true,
-                'stock.store_new' => true,
-                'alerts.purchase' => true,
-                'people.manage' => true,
-                'classes.manage' => true,
-                'suppliers.manage' => false,
-            ],
         ];
 
         return $matrix[$role][$ability] ?? false;
@@ -132,7 +96,7 @@ class EmployeeRole
     {
         $role = self::fromSession($request);
 
-        if (!self::can($role, $ability)) {
+        if (! self::can($role, $ability)) {
             abort(403, 'Seu cargo não tem permissão para esta ação.');
         }
     }
@@ -141,7 +105,7 @@ class EmployeeRole
     {
         $role = self::fromSession($request);
 
-        if (!in_array($role, $roles, true)) {
+        if ($role !== self::COORDENADOR && ! in_array($role, $roles, true)) {
             abort(403, 'Seu cargo não tem permissão para acessar este recurso.');
         }
     }

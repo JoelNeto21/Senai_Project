@@ -43,15 +43,6 @@ class UserFactory extends Factory
         ]);
     }
 
-    /**
-     * Create an almoxarife (warehouse manager) user.
-     */
-    public function almoxarife(): static
-    {
-        return $this->state(fn (array $attributes) => [
-            'role' => 'almoxarife',
-        ]);
-    }
 
     /**
      * Create a coordenador (coordinator) user.

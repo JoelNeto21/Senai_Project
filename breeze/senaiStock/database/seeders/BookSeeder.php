@@ -206,7 +206,7 @@ class BookSeeder extends Seeder
                 $book + [
                     'description' => 'Livro didatico utilizado no curso de ' . $book['subject'] . '.',
                     'minimum_stock' => 8,
-                    'location' => 'Almoxarifado central',
+                    'location' => 'Estoque central',
                     'status' => 'ativo',
                 ]
             );

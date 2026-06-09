@@ -7,25 +7,19 @@ window.Alpine = Alpine;
 Alpine.data('demoAccessCard', () => ({
 	open: false,
 	users: [
-		{ label: 'ADM', role: 'Gestao e relatorios', nif: '111111', cpf: '11111111111' },
-		{ label: 'Almoxarifado', role: 'Operacao de estoque', nif: '123456', cpf: '12345678900' },
-		{ label: 'Professor', role: 'Solicitacao sem login', url: '/solicitar-livros' },
+		{ label: 'Coordenador', role: 'Gestao e relatorios', nif: '111111', password: 'senai123' },
+		{ label: 'Professor', role: 'Solicitacoes de materiais', nif: '654321', password: 'senai123' },
 	],
 
 	fill(user) {
-		if (user.url) {
-			window.location.href = user.url;
-			return;
-		}
-
 		const nif = document.querySelector('#nif');
-		const cpf = document.querySelector('#cpf');
+		const password = document.querySelector('#password');
 
-		if (nif && cpf) {
+		if (nif && password) {
 			nif.value = user.nif;
-			cpf.value = user.cpf;
+			password.value = user.password;
 			nif.dispatchEvent(new Event('input', { bubbles: true }));
-			cpf.dispatchEvent(new Event('input', { bubbles: true }));
+			password.dispatchEvent(new Event('input', { bubbles: true }));
 		}
 	},
 }));
@@ -88,6 +82,50 @@ Alpine.data('libraryBrowser', (books = [], threshold = 8) => ({
 
 	isCritical(book) {
 		return Number(book?.quantity ?? 0) < this.threshold;
+	},
+}));
+
+Alpine.data('teacherRequestForm', (turmas = [], books = [], initialBookId = '') => ({
+	turmas,
+	books,
+	turmaId: '',
+	cursoId: '',
+	bookId: initialBookId ? String(initialBookId) : '',
+
+	normalize(value) {
+		return String(value ?? '')
+			.normalize('NFD')
+			.replace(/[\u0300-\u036f]/g, '')
+			.toLowerCase()
+			.replace(/[^a-z0-9]/g, '');
+	},
+
+	get selectedTurma() {
+		return this.turmas.find((turma) => String(turma.id) === String(this.turmaId));
+	},
+
+	get filteredBooks() {
+		if (!this.selectedTurma) {
+			return [];
+		}
+
+		const course = this.normalize(this.selectedTurma.curso_nome);
+		return this.books.filter((book) => this.normalize(book.subject) === course);
+	},
+
+	selectTurma() {
+		this.cursoId = this.selectedTurma ? String(this.selectedTurma.curso_id) : '';
+
+		if (!this.filteredBooks.some((book) => String(book.id) === String(this.bookId))) {
+			this.bookId = '';
+		}
+	},
+
+	selectBook(bookId) {
+		const id = String(bookId ?? '');
+		if (this.filteredBooks.some((book) => String(book.id) === id)) {
+			this.bookId = id;
+		}
 	},
 }));
 

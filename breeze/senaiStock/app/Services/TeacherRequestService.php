@@ -5,43 +5,58 @@ namespace App\Services;
 use App\Mail\TeacherRequestStatusMail;
 use App\Models\Book;
 use App\Models\Funcionario;
+use App\Models\PurchaseOrder;
 use App\Models\StockNotification;
+use App\Models\Supplier;
 use App\Models\TeacherRequest;
 use App\Models\TeacherRequestMessage;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 class TeacherRequestService
 {
-    public function __construct(private readonly StockService $stockService)
-    {
-    }
+    public function __construct(private readonly StockService $stockService) {}
 
     public function create(array $data): TeacherRequest
     {
         $book = Book::query()->findOrFail($data['book_id']);
 
-        $teacherRequest = TeacherRequest::create([
-            'protocol' => $this->nextProtocol(),
-            'teacher_name' => $data['teacher_name'],
-            'teacher_email' => $data['teacher_email'] ?? null,
-            'class_name' => $data['class_name'],
-            'course_name' => $data['course_name'] ?? null,
-            'subject' => $book->subject,
-            'book_id' => $book->id,
-            'title' => $book->title,
-            'quantity' => (int) $data['quantity'],
-            'due_date' => $data['due_date'] ?? null,
-            'notes' => $data['notes'] ?? null,
-            'status' => 'pendente',
-        ]);
+        $teacherRequest = DB::transaction(function () use ($book, $data): TeacherRequest {
+            $teacherRequest = TeacherRequest::create([
+                'protocol' => $this->nextProtocol(),
+                'requested_by_funcionario_id' => $data['requested_by_funcionario_id'] ?? null,
+                'teacher_name' => $data['teacher_name'],
+                'teacher_email' => $data['teacher_email'] ?? null,
+                'class_name' => $data['class_name'],
+                'course_name' => $data['course_name'] ?? null,
+                'subject' => $book->subject,
+                'book_id' => $book->id,
+                'title' => $book->title,
+                'quantity' => (int) $data['quantity'],
+                'due_date' => $data['due_date'] ?? null,
+                'notes' => $data['notes'] ?? null,
+                'status' => 'pendente',
+            ]);
+
+            $missing = max($teacherRequest->quantity - $book->quantity, 0);
+
+            if ($missing > 0) {
+                $this->createPurchaseOrder($teacherRequest, $missing);
+                $teacherRequest->update(['status' => 'compra']);
+            }
+
+            return $teacherRequest;
+        });
 
         $this->message(
             $teacherRequest,
             'sistema',
             'SenaiStock',
-            'pendente',
-            'Solicitacao registrada e enviada para analise do almoxarifado.',
+            $teacherRequest->status,
+            $teacherRequest->status === 'compra'
+                ? 'Solicitacao registrada. A quantidade faltante foi enviada para aprovacao de compra.'
+                : 'Solicitacao registrada e enviada para análise da coordenação.',
             false
         );
 
@@ -67,10 +82,10 @@ class TeacherRequestService
 
         $this->message(
             $teacherRequest,
-            'almoxarifado',
+            'coordenacao',
             null,
             'aprovado',
-            $message ?: 'Pedido aprovado. O material sera separado pelo almoxarifado.',
+            $message ?: 'Pedido aprovado pela coordenação.',
             true,
             $funcionarioId
         );
@@ -87,7 +102,7 @@ class TeacherRequestService
 
         $this->message(
             $teacherRequest,
-            'almoxarifado',
+            'coordenacao',
             null,
             'rejeitado',
             $message,
@@ -107,7 +122,7 @@ class TeacherRequestService
 
         $this->message(
             $teacherRequest,
-            'almoxarifado',
+            'coordenacao',
             null,
             'separado',
             $message ?: 'Material separado e disponivel para retirada.',
@@ -124,7 +139,7 @@ class TeacherRequestService
             $teacherRequest->book,
             $teacherRequest->quantity,
             $funcionarioId,
-            'Pedido do professor ' . $teacherRequest->teacher_name . ' para ' . $teacherRequest->class_name . '.'
+            'Pedido do professor '.$teacherRequest->teacher_name.' para '.$teacherRequest->class_name.'.'
         );
 
         $teacherRequest->update([
@@ -134,7 +149,7 @@ class TeacherRequestService
 
         $this->message(
             $teacherRequest,
-            'almoxarifado',
+            'coordenacao',
             null,
             'atendido',
             'Pedido atendido e baixa de estoque registrada.',
@@ -184,9 +199,32 @@ class TeacherRequestService
     private function nextProtocol(): string
     {
         do {
-            $protocol = 'SS-' . now()->format('Ymd') . '-' . Str::upper(Str::random(5));
+            $protocol = 'SS-'.now()->format('Ymd').'-'.Str::upper(Str::random(5));
         } while (TeacherRequest::where('protocol', $protocol)->exists());
 
         return $protocol;
+    }
+
+    private function createPurchaseOrder(TeacherRequest $teacherRequest, int $missing): PurchaseOrder
+    {
+        $order = PurchaseOrder::create([
+            'order_number' => 'PED-'.now()->format('ymd-His').'-'.Str::upper(Str::random(3)),
+            'supplier_id' => Supplier::where('status', 'ativo')->value('id'),
+            'requested_by_funcionario_id' => $teacherRequest->requested_by_funcionario_id,
+            'status' => 'pendente_aprovacao',
+            'generated_at' => now(),
+            'notes' => "Compra automatica para a solicitacao {$teacherRequest->protocol}.",
+        ]);
+
+        $order->items()->create([
+            'teacher_request_id' => $teacherRequest->id,
+            'book_id' => $teacherRequest->book_id,
+            'title' => $teacherRequest->title,
+            'quantity' => $missing,
+            'type' => 'restock',
+            'justification' => "Quantidade faltante para atender {$teacherRequest->teacher_name}.",
+        ]);
+
+        return $order;
     }
 }

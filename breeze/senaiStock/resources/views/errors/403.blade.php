@@ -28,7 +28,7 @@
                         <p class="mx-auto inline-flex rounded-full border border-red-100 bg-red-50 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-red-600">403</p>
                         <h1 class="mt-6 text-3xl font-semibold tracking-tight text-gray-950 sm:text-5xl">Acesso restrito</h1>
                         <p class="mx-auto mt-4 max-w-xl text-base leading-7 text-gray-600">
-                            Esta área é reservada a perfis administrativos. Use o menu permitido para continuar a operação do almoxarifado.
+                            Esta área é reservada à coordenação. Use o menu permitido para continuar.
                         </p>
                         <div class="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
                             @if ($employee)
@@ -36,7 +36,7 @@
                             @else
                                 <a href="{{ route('employee.login') }}" class="rounded-2xl bg-gray-950 px-5 py-3 text-sm font-bold text-white shadow-sm hover:bg-gray-800">Entrar</a>
                             @endif
-                            <a href="{{ route('teacher-requests.create') }}" class="rounded-2xl border border-gray-200 bg-white px-5 py-3 text-sm font-bold text-gray-700 shadow-sm hover:bg-gray-50">Área pública</a>
+                            <a href="{{ route('employee.login') }}" class="rounded-2xl border border-gray-200 bg-white px-5 py-3 text-sm font-bold text-gray-700 shadow-sm hover:bg-gray-50">Entrar com outro perfil</a>
                         </div>
                     </div>
                 </section>

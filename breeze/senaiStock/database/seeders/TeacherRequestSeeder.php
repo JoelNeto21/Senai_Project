@@ -3,9 +3,11 @@
 namespace Database\Seeders;
 
 use App\Models\Book;
+use App\Models\Funcionario;
 use App\Models\TeacherRequest;
+use App\Models\Turma;
+use App\Services\TeacherRequestService;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Str;
 
 class TeacherRequestSeeder extends Seeder
 {
@@ -16,14 +18,12 @@ class TeacherRequestSeeder extends Seeder
         }
 
         $books = Book::query()->orderBy('subject')->orderBy('title')->limit(4)->get();
-        $teachers = [
-            ['teacher_name' => 'Prof. Carlos Mendes', 'teacher_email' => 'carlos.mendes@escola.senai.br', 'class_name' => 'MEC-2A'],
-            ['teacher_name' => 'Profa. Ana Paula', 'teacher_email' => 'ana.paula@escola.senai.br', 'class_name' => 'DS-1B'],
-            ['teacher_name' => 'Prof. Roberto Alves', 'teacher_email' => 'roberto.alves@escola.senai.br', 'class_name' => 'ELE-3C'],
-            ['teacher_name' => 'Profa. Fernanda Lima', 'teacher_email' => 'fernanda.lima@escola.senai.br', 'class_name' => 'ADM-1A'],
-        ];
+        $turmas = Turma::with('curso')->orderBy('id')->get();
+        $professor = Funcionario::where('NIF', 654321)->firstOrFail();
+        $service = app(TeacherRequestService::class);
 
-        $books->values()->each(function (Book $book, int $index) use ($teachers): void {
+        $books->values()->each(function (Book $book, int $index) use ($turmas, $professor, $service): void {
+            $turma = $turmas[$index % $turmas->count()];
             $requestedQuantity = match ($index) {
                 0 => max(1, min($book->quantity, 18)),
                 1 => $book->quantity + 5,
@@ -31,15 +31,16 @@ class TeacherRequestSeeder extends Seeder
                 default => $book->quantity + 10,
             };
 
-            TeacherRequest::create($teachers[$index] + [
-                'protocol' => 'SS-' . now()->format('Ymd') . '-' . Str::upper(Str::random(5)),
-                'subject' => $book->subject,
+            $service->create([
+                'requested_by_funcionario_id' => $professor->Id_funcionario,
+                'teacher_name' => $professor->Nome,
+                'teacher_email' => 'professor@senai.br',
+                'class_name' => $turma->nome_turma,
+                'course_name' => $turma->curso?->nome_curso,
                 'book_id' => $book->id,
-                'title' => $book->title,
                 'quantity' => $requestedQuantity,
-                'status' => $index === 2 ? 'atendido' : 'pendente',
                 'due_date' => now()->addDays(3 + $index)->toDateString(),
-                'notes' => 'Pedido inicial para demonstracao do fluxo do almoxarifado.',
+                'notes' => 'Pedido inicial para demonstracao do fluxo da coordenacao.',
             ]);
         });
     }

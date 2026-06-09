@@ -4,22 +4,36 @@ namespace Tests\Feature;
 
 use App\Mail\TeacherRequestStatusMail;
 use App\Models\Book;
+use App\Models\Cargo;
+use App\Models\Curso;
+use App\Models\Funcionario;
 use App\Models\TeacherRequest;
 use App\Models\TeacherRequestMessage;
+use App\Models\Turma;
 use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 class TeacherRequestFlowTest extends TestCase
 {
-    public function test_public_teacher_can_create_request_and_receive_protocol(): void
+    public function test_professor_can_create_request_from_authenticated_profile(): void
     {
-        $book = Book::factory()->create(['quantity' => 20]);
+        $book = Book::factory()->create(['quantity' => 20, 'subject' => 'Desenvolvimento de Sistemas']);
+        $curso = Curso::create(['nome_curso' => 'Desenvolvimento de Sistemas']);
+        $turma = Turma::create(['nome_turma' => 'DS-1A', 'curso_id' => $curso->id]);
 
-        $response = $this->post(route('teacher-requests.store'), [
-            'teacher_name' => 'Prof. Ana Souza',
+        $cargo = Cargo::firstOrCreate(['Nome_cargo' => 'Professor']);
+        $professor = Funcionario::factory()->create(['Id_cargo_FK' => $cargo->Id_cargo]);
+
+        $response = $this->withSession([
+            'employee' => [
+                'id' => $professor->Id_funcionario,
+                'name' => $professor->Nome,
+                'cargo' => 'Professor',
+            ],
+        ])->post(route('stock.teacher-requests.store'), [
             'teacher_email' => 'ana.souza@senai.br',
-            'course_name' => 'Desenvolvimento de Sistemas',
-            'class_name' => 'DS-1A',
+            'curso_id' => $curso->id,
+            'turma_id' => $turma->id,
             'book_id' => $book->id,
             'quantity' => 12,
             'notes' => 'Aula pratica de logica.',
@@ -27,7 +41,7 @@ class TeacherRequestFlowTest extends TestCase
 
         $teacherRequest = TeacherRequest::first();
 
-        $response->assertRedirect(route('teacher-requests.show', $teacherRequest->protocol));
+        $response->assertRedirect(route('senai.dashboard', ['view' => 'teacher_requests']));
         $this->assertNotNull($teacherRequest->protocol);
         $this->assertDatabaseHas('teacher_request_messages', [
             'teacher_request_id' => $teacherRequest->id,
@@ -39,7 +53,13 @@ class TeacherRequestFlowTest extends TestCase
         ]);
     }
 
-    public function test_almoxarifado_approval_sends_email_and_records_message(): void
+    public function test_public_request_area_is_removed(): void
+    {
+        $this->get('/solicitar-livros')->assertNotFound();
+        $this->get('/solicitacoes/SS-TEST')->assertNotFound();
+    }
+
+    public function test_coordenador_approval_sends_email_and_records_message(): void
     {
         Mail::fake();
 
@@ -88,8 +108,8 @@ class TeacherRequestFlowTest extends TestCase
         ]);
 
         $response = $this
-            ->withEmployeeSession()
-            ->post(route('stock.teacher-requests.fulfill', $teacherRequest));
+            ->withEmployeeSession('Coordenador')
+            ->post(route('stock.teacher-requests.fulfill', $teacherRequest), ['quantity' => 5]);
 
         $response->assertSessionHasErrors();
         $this->assertSame(2, $book->fresh()->quantity);

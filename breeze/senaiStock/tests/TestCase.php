@@ -34,7 +34,6 @@ abstract class TestCase extends BaseTestCase
     {
         $name ??= match ($cargo) {
             'Professor' => 'Prof. Carlos Mendes',
-            'Almoxarife' => 'Almoxarifado Senai',
             default => 'Coordenador Senai',
         };
 

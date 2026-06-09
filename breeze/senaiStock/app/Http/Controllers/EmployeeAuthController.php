@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Funcionario;
+use App\Support\EmployeeRole;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -27,19 +28,19 @@ class EmployeeAuthController extends Controller
             ->where('NIF', $credentials['nif'])
             ->first();
 
-        if (!$funcionario || !Hash::check($credentials['password'], $funcionario->password ?? '')) {
+        if (! $funcionario || ! Hash::check($credentials['password'], $funcionario->password ?? '')) {
             return back()->withErrors([
                 'nif' => 'Credenciais inválidas para o funcionário informado.',
             ])->withInput($request->only('nif'));
         }
 
-        $roleKey = $this->roleKey($funcionario->cargo?->Nome_cargo);
-
-        if ($roleKey === 'professor') {
+        if (! in_array($funcionario->cargo?->Nome_cargo, [EmployeeRole::COORDENADOR, EmployeeRole::PROFESSOR], true)) {
             return back()->withErrors([
-                'nif' => 'Professores devem usar a area publica de solicitacao, sem login interno.',
-            ]);
+                'nif' => 'Este cargo não possui acesso ao sistema.',
+            ])->withInput($request->only('nif'));
         }
+
+        $roleKey = $this->roleKey($funcionario->cargo?->Nome_cargo);
 
         $request->session()->regenerate();
         $request->session()->put('employee', [
@@ -50,7 +51,9 @@ class EmployeeAuthController extends Controller
             'nif' => $funcionario->NIF,
         ]);
 
-        return redirect()->route('dashboard');
+        return redirect()->route('senai.dashboard', [
+            'view' => EmployeeRole::defaultView($funcionario->cargo?->Nome_cargo),
+        ]);
     }
 
     public function destroy(Request $request): RedirectResponse

@@ -10,27 +10,17 @@ class FuncionarioSeeder extends Seeder
 {
     public function run(): void
     {
-        $administrador = Cargo::where('Nome_cargo', 'Administrador')->firstOrFail();
-        $almoxarife = Cargo::where('Nome_cargo', 'Almoxarife')->firstOrFail();
+        $coordenador = Cargo::where('Nome_cargo', 'Coordenador')->firstOrFail();
         $professor = Cargo::where('Nome_cargo', 'Professor')->firstOrFail();
 
-        Funcionario::firstOrCreate(['NIF' => 111111], [
-            'Nome' => 'Administrador Senai',
+        Funcionario::updateOrCreate(['NIF' => 111111], [
+            'Nome' => 'Coordenador Senai',
             'Cpf' => '11111111111',
             'password' => 'senai123',
-            'Id_cargo_FK' => $administrador->Id_cargo,
+            'Id_cargo_FK' => $coordenador->Id_cargo,
         ]);
 
-        Funcionario::firstOrCreate(['NIF' => 123456], [
-            'NIF' => 123456,
-            'Nome' => 'Almoxarifado Senai',
-            'Cpf' => '12345678900',
-            'password' => 'senai123',
-            'Id_cargo_FK' => $almoxarife->Id_cargo,
-        ]);
-
-        Funcionario::firstOrCreate(['NIF' => 654321], [
-            'NIF' => 654321,
+        Funcionario::updateOrCreate(['NIF' => 654321], [
             'Nome' => 'Professor Teste',
             'Cpf' => '98765432100',
             'password' => 'senai123',
