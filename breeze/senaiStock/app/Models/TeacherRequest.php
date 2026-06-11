@@ -30,6 +30,8 @@ class TeacherRequest extends Model
         'prepared_at',
         'rejected_at',
         'notified_at',
+        'notifications_dismissed_at',
+        'notifications_dismissed_message_id',
     ];
 
     protected $casts = [
@@ -42,6 +44,8 @@ class TeacherRequest extends Model
         'prepared_at' => 'datetime',
         'rejected_at' => 'datetime',
         'notified_at' => 'datetime',
+        'notifications_dismissed_at' => 'datetime',
+        'notifications_dismissed_message_id' => 'integer',
     ];
 
     public function book(): BelongsTo

@@ -25,6 +25,9 @@ Route::post('/cadastro', [EmployeeRegistrationController::class, 'store'])->name
 Route::post('/sair', [EmployeeAuthController::class, 'destroy'])->name('employee.logout');
 
 Route::middleware('employee.auth')->group(function () {
+    Route::put('/minha-senha', [EmployeeAuthController::class, 'updatePassword'])
+        ->name('employee.password.update');
+
     Route::get('/dashboard', [SenaiStockController::class, 'index'])
         ->name('dashboard');
 
@@ -36,6 +39,10 @@ Route::middleware('employee.auth')->group(function () {
         ->name('stock.books.receive');
     Route::post('/estoque/livros/novo', [SenaiStockController::class, 'storeNewMaterial'])
         ->name('stock.books.store-new');
+    Route::put('/estoque/livros/{book}', [SenaiStockController::class, 'updateBook'])
+        ->name('stock.books.update');
+    Route::delete('/estoque/livros/{book}', [SenaiStockController::class, 'destroyBook'])
+        ->name('stock.books.destroy');
     Route::post('/estoque/retiradas/lote', [SenaiStockController::class, 'withdrawBatch'])
         ->name('stock.withdraw.batch');
     Route::post('/estoque/pedidos-professores/{teacherRequest}/separar', [SenaiStockController::class, 'fulfillTeacherRequest'])
@@ -55,6 +62,10 @@ Route::middleware('employee.auth')->group(function () {
         ->name('stock.teacher-requests.purchase');
     Route::post('/estoque/pedidos-professores', [SenaiStockController::class, 'storeTeacherRequest'])
         ->name('stock.teacher-requests.store');
+    Route::delete('/estoque/pedidos-professores/{teacherRequest}', [SenaiStockController::class, 'destroyTeacherRequest'])
+        ->name('stock.teacher-requests.destroy');
+    Route::delete('/estoque/pedidos-professores/{teacherRequest}/notificacoes', [SenaiStockController::class, 'dismissTeacherRequestNotifications'])
+        ->name('stock.teacher-requests.notifications.dismiss');
     Route::post('/estoque/compras/gerar', [SenaiStockController::class, 'generatePurchaseOrder'])
         ->middleware('employee.role:Coordenador')
         ->name('stock.purchases.generate');
@@ -71,8 +82,16 @@ Route::middleware('employee.auth')->group(function () {
         ->name('stock.alerts.purchase');
     Route::post('/estoque/turmas', [SenaiStockController::class, 'storeTurma'])
         ->name('stock.classes.store');
+    Route::put('/estoque/turmas/{turma}', [SenaiStockController::class, 'updateTurma'])
+        ->name('stock.classes.update');
+    Route::delete('/estoque/turmas/{turma}', [SenaiStockController::class, 'destroyTurma'])
+        ->name('stock.classes.destroy');
     Route::post('/estoque/cursos', [SenaiStockController::class, 'storeCurso'])
         ->name('stock.courses.store');
+    Route::put('/estoque/cursos/{curso}', [SenaiStockController::class, 'updateCurso'])
+        ->name('stock.courses.update');
+    Route::delete('/estoque/cursos/{curso}', [SenaiStockController::class, 'destroyCurso'])
+        ->name('stock.courses.destroy');
 
     Route::middleware('employee.role:Coordenador')->group(function () {
         Route::resource('funcionarios', FuncionarioController::class);

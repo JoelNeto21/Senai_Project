@@ -53,4 +53,45 @@ class EmployeeAuthenticationTest extends TestCase
 
         $this->assertTrue(Hash::check('senai123', $funcionario->password));
     }
+
+    public function test_employee_can_change_own_password_with_current_password(): void
+    {
+        $funcionario = Funcionario::factory()->create(['password' => 'senha-atual']);
+
+        $response = $this->withSession([
+            'employee' => [
+                'id' => $funcionario->Id_funcionario,
+                'name' => $funcionario->Nome,
+                'cargo' => 'Professor',
+            ],
+        ])->put(route('employee.password.update'), [
+            'current_password' => 'senha-atual',
+            'password' => 'senha-nova',
+            'password_confirmation' => 'senha-nova',
+        ]);
+
+        $response->assertSessionHas('status', 'Senha alterada com sucesso.');
+        $this->assertTrue(Hash::check('senha-nova', $funcionario->fresh()->password));
+    }
+
+    public function test_employee_cannot_change_password_with_wrong_current_password(): void
+    {
+        $funcionario = Funcionario::factory()->create(['password' => 'senha-atual']);
+
+        $response = $this->withSession([
+            'employee' => [
+                'id' => $funcionario->Id_funcionario,
+                'name' => $funcionario->Nome,
+                'cargo' => 'Professor',
+            ],
+        ])->from(route('senai.dashboard', ['view' => 'teacher_requests']))
+            ->put(route('employee.password.update'), [
+                'current_password' => 'incorreta',
+                'password' => 'senha-nova',
+                'password_confirmation' => 'senha-nova',
+            ]);
+
+        $response->assertSessionHasErrors('current_password');
+        $this->assertTrue(Hash::check('senha-atual', $funcionario->fresh()->password));
+    }
 }

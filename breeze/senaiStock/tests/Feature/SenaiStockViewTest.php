@@ -381,7 +381,10 @@ class SenaiStockViewTest extends TestCase
         $this->get(route('senai.dashboard', ['view' => 'purchases']))
             ->assertOk()
             ->assertDontSee('Título Inédito')
-            ->assertDontSee('Fornecedor / Editora');
+            ->assertDontSee('Fornecedor / Editora')
+            ->assertDontSee('carrinho')
+            ->assertSee('Todos os cursos')
+            ->assertSee('Registrar compra');
 
         $this->get(route('senai.dashboard', ['view' => 'reports']))
             ->assertOk()
@@ -389,6 +392,35 @@ class SenaiStockViewTest extends TestCase
             ->assertSee('Todas as áreas')
             ->assertSee('x-model="subject"', false)
             ->assertSee("sort('title')", false);
+    }
+
+    public function test_coordinator_can_register_single_book_restock_purchase(): void
+    {
+        $book = \App\Models\Book::factory()->create([
+            'title' => 'Livro para reposição',
+            'subject' => 'Desenvolvimento de Sistemas',
+        ]);
+
+        $response = $this->post(route('stock.purchases.generate'), [
+            'book_id' => $book->id,
+            'quantity' => 12,
+            'justification' => 'Reposição avulsa.',
+        ]);
+
+        $response->assertRedirect(route('senai.dashboard', [
+            'view' => 'purchases',
+            'tab' => 'historico',
+        ]));
+        $this->assertDatabaseHas('purchase_order_items', [
+            'book_id' => $book->id,
+            'title' => 'Livro para reposição',
+            'quantity' => 12,
+            'justification' => 'Reposição avulsa.',
+        ]);
+
+        $this->get(route('senai.dashboard', ['view' => 'purchases', 'tab' => 'historico']))
+            ->assertOk()
+            ->assertSee('Livro para reposição');
     }
 
     public function test_coordenador_can_create_course(): void
@@ -401,8 +433,101 @@ class SenaiStockViewTest extends TestCase
 
         $this->get(route('senai.dashboard', ['view' => 'courses']))
             ->assertOk()
-            ->assertSee('Cadastrar Curso')
+            ->assertSee('Curso')
             ->assertSee('Administração');
+    }
+
+    public function test_stock_withdraw_link_opens_withdraw_tab(): void
+    {
+        $this->get(route('senai.dashboard', ['view' => 'stock', 'tab' => 'saida']))
+            ->assertOk()
+            ->assertViewHas('activeTab', 'saida')
+            ->assertSee('x-data="preservedTabs', false);
+    }
+
+    public function test_teacher_request_due_date_cannot_be_in_the_past(): void
+    {
+        $curso = Curso::factory()->create(['nome_curso' => 'Desenvolvimento']);
+        $turma = Turma::factory()->create(['curso_id' => $curso->id]);
+        $book = \App\Models\Book::factory()->create(['subject' => $curso->nome_curso]);
+        $pastDate = now()->subDay()->toDateString();
+
+        $response = $this->from(route('senai.dashboard', ['view' => 'teacher_requests']))
+            ->post(route('stock.teacher-requests.store'), [
+            'turma_id' => $turma->id,
+            'curso_id' => $curso->id,
+            'book_id' => $book->id,
+            'quantity' => 3,
+            'due_date' => $pastDate,
+            'notes' => 'Manter estas informações',
+        ]);
+
+        $response
+            ->assertRedirect(route('senai.dashboard', ['view' => 'teacher_requests']))
+            ->assertSessionHasErrors([
+                'due_date' => 'O prazo desejado deve ser igual ou posterior à data de hoje.',
+            ])
+            ->assertSessionHasInput('turma_id', $turma->id)
+            ->assertSessionHasInput('book_id', $book->id)
+            ->assertSessionHasInput('quantity', 3)
+            ->assertSessionHasInput('notes', 'Manter estas informações');
+
+        $renderedForm = $this->get(route('senai.dashboard', ['view' => 'teacher_requests']));
+        $renderedForm
+            ->assertOk()
+            ->assertSee('value="'.$pastDate.'"', false)
+            ->assertSee('value="3"', false)
+            ->assertSee('Manter estas informações');
+
+        $this->assertMatchesRegularExpression(
+            '/<details[^>]*\sopen(?:\s|>)/',
+            $renderedForm->getContent(),
+        );
+    }
+
+    public function test_coordenador_can_update_and_delete_school_records_and_books(): void
+    {
+        $curso = Curso::factory()->create(['nome_curso' => 'Curso antigo']);
+        $turma = Turma::factory()->create(['curso_id' => $curso->id, 'nome_turma' => 'Turma antiga']);
+        $book = \App\Models\Book::factory()->create(['subject' => $curso->nome_curso]);
+
+        $this->put(route('stock.courses.update', $curso), ['nome_curso' => 'Curso novo'])
+            ->assertRedirect(route('senai.dashboard', ['view' => 'courses']));
+        $this->assertDatabaseHas('books', ['id' => $book->id, 'subject' => 'Curso novo']);
+
+        $this->put(route('stock.classes.update', $turma), [
+            'nome_turma' => 'Turma nova',
+            'curso_id' => $curso->id,
+        ])->assertRedirect(route('senai.dashboard', ['view' => 'classes']));
+
+        $this->put(route('stock.books.update', $book), [
+            'title' => 'Livro atualizado',
+            'subject' => 'Curso novo',
+            'minimum_stock' => 5,
+            'status' => 'ativo',
+        ])->assertRedirect(route('senai.dashboard', ['view' => 'book_registration']));
+
+        $this->delete(route('stock.classes.destroy', $turma))
+            ->assertRedirect(route('senai.dashboard', ['view' => 'classes']));
+        $this->delete(route('stock.books.destroy', $book))
+            ->assertRedirect(route('senai.dashboard', ['view' => 'book_registration']));
+        $this->delete(route('stock.courses.destroy', $curso))
+            ->assertRedirect(route('senai.dashboard', ['view' => 'courses']));
+
+        $this->assertDatabaseMissing('turmas', ['id' => $turma->id]);
+        $this->assertDatabaseMissing('books', ['id' => $book->id]);
+        $this->assertDatabaseMissing('cursos', ['id' => $curso->id]);
+    }
+
+    public function test_people_page_integrates_employee_management(): void
+    {
+        $funcionario = Funcionario::factory()->create();
+
+        $this->get(route('senai.dashboard', ['view' => 'people']))
+            ->assertOk()
+            ->assertSee('action="'.route('funcionarios.update', $funcionario).'"', false)
+            ->assertSee('action="'.route('funcionarios.destroy', $funcionario).'"', false)
+            ->assertDontSee('Gerenciar funcionários');
     }
 
     public function test_book_registration_uses_single_searchable_course_field(): void
@@ -415,6 +540,8 @@ class SenaiStockViewTest extends TestCase
             ->assertSee('list="course-options"', false)
             ->assertDontSee('name="location"', false)
             ->assertSee('name="image"', false)
+            ->assertSee('bookEditTable()', false)
+            ->assertSee('Buscar livro')
             ->assertSee('Mecatrônica');
     }
 

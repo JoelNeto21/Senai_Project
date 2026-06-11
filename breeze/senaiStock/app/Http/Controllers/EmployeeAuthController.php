@@ -7,6 +7,7 @@ use App\Support\EmployeeRole;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -63,6 +64,26 @@ class EmployeeAuthController extends Controller
         $request->session()->regenerateToken();
 
         return redirect()->route('employee.login');
+    }
+
+    public function updatePassword(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'current_password' => ['required', 'string'],
+            'password' => ['required', 'confirmed', Password::min(6)],
+        ]);
+
+        $funcionario = Funcionario::findOrFail($request->session()->get('employee.id'));
+
+        if (! Hash::check($data['current_password'], $funcionario->password ?? '')) {
+            return back()->withErrors([
+                'current_password' => 'A senha atual está incorreta.',
+            ]);
+        }
+
+        $funcionario->update(['password' => $data['password']]);
+
+        return back()->with('status', 'Senha alterada com sucesso.');
     }
 
     private function roleKey(?string $role): string

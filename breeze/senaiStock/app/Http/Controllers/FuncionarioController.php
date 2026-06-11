@@ -12,15 +12,7 @@ class FuncionarioController extends Controller
     // 1. Listar todos os funcionários
     public function index()
     {
-        // Usamos with('cargo') para carregar o nome do cargo sem sobrecarregar o banco
-        $funcionarios = Funcionario::with('cargo')->get();
-        // Temporarily use temp file until directories are properly created
-        $viewPath = 'temp_funcionarios_index';
-        if (view()->exists('funcionarios.index')) {
-            $viewPath = 'funcionarios.index';
-        }
-
-        return view($viewPath, compact('funcionarios'));
+        return redirect()->route('senai.dashboard', ['view' => 'people']);
     }
 
     // 2. Mostrar o formulário para criar um novo funcionário
@@ -59,7 +51,7 @@ class FuncionarioController extends Controller
         ]);
 
         return redirect()->route('senai.dashboard', ['view' => 'people'])
-            ->with('success', 'Funcionário cadastrado com sucesso!');
+            ->with('status', 'Funcionário cadastrado com sucesso!');
     }
 
     // 4. Mostrar o formulário de edição
@@ -92,7 +84,7 @@ class FuncionarioController extends Controller
         $funcionario->update($request->only(['NIF', 'Nome', 'Id_cargo_FK']));
 
         return redirect()->route('senai.dashboard', ['view' => 'people'])
-            ->with('success', 'Dados atualizados!');
+            ->with('status', 'Dados atualizados!');
     }
 
     // 6. Excluir o funcionário
@@ -100,7 +92,7 @@ class FuncionarioController extends Controller
     {
         $funcionario->delete();
 
-        return redirect()->route('funcionarios.index')
-            ->with('success', 'Funcionário removido.');
+        return redirect()->route('senai.dashboard', ['view' => 'people'])
+            ->with('status', 'Funcionário removido.');
     }
 }

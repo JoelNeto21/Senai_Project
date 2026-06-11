@@ -7,8 +7,8 @@ window.Alpine = Alpine;
 Alpine.data('demoAccessCard', () => ({
 	open: false,
 	users: [
-		{ label: 'Coordenador', role: 'Gestao e relatorios', nif: '111111', password: 'senai123' },
-		{ label: 'Professor', role: 'Solicitacoes de materiais', nif: '654321', password: 'senai123' },
+		{ label: 'Coordenador', role: 'Gestão e relatórios', nif: '111111', password: 'senai123' },
+		{ label: 'Professor', role: 'Solicitações de materiais', nif: '654321', password: 'senai123' },
 	],
 
 	fill(user) {
@@ -51,9 +51,9 @@ Alpine.data('spotlightSearch', (books = [], pages = [], routeTemplate = '/dashbo
 			.filter((page) => this.normalize(`${page.label} ${page.id}`).includes(term))
 			.slice(0, 4)
 			.map((page) => ({
-				type: 'Pagina',
+				type: 'Página',
 				title: page.label,
-				subtitle: 'Abrir area do sistema',
+				subtitle: 'Abrir área do sistema',
 				url: this.pageUrl(page.id),
 			}));
 
@@ -78,6 +78,7 @@ Alpine.data('libraryBrowser', (books = [], threshold = 8) => ({
 
 	select(bookId) {
 		this.selectedBook = this.books.find((book) => String(book.id) === String(bookId)) ?? this.selectedBook;
+		this.$nextTick(() => document.querySelector('#book-details')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
 	},
 
 	isCritical(book) {
@@ -85,14 +86,54 @@ Alpine.data('libraryBrowser', (books = [], threshold = 8) => ({
 	},
 }));
 
-Alpine.data('teacherRequestForm', (turmas = [], books = [], initialBookId = '') => ({
+Alpine.data('preservedTabs', (initialTab = 'entrada') => ({
+	tab: initialTab,
+
+	selectTab(tab) {
+		const scrollY = window.scrollY;
+		this.$el.style.minHeight = `${this.$el.offsetHeight}px`;
+		this.tab = tab;
+		this.$nextTick(() => {
+			requestAnimationFrame(() => {
+				const maxScroll = Math.max(document.documentElement.scrollHeight - window.innerHeight, 0);
+				window.scrollTo({ top: Math.min(scrollY, maxScroll), behavior: 'auto' });
+				this.$el.style.minHeight = '';
+			});
+		});
+	},
+}));
+
+Alpine.data('bookEditTable', () => ({
+	query: '',
+	selectedId: null,
+
+	normalize(value) {
+		return String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+	},
+
+	matches(book) {
+		const term = this.normalize(this.query);
+		return !term || this.normalize(`${book.title} ${book.isbn} ${book.subject}`).includes(term);
+	},
+
+	toggle(bookId) {
+		this.selectedId = String(this.selectedId) === String(bookId) ? null : String(bookId);
+	},
+}));
+
+Alpine.data('teacherRequestForm', (turmas = [], books = [], initialBookId = '', previous = {}) => ({
 	turmas,
 	books,
-	turmaId: '',
-	cursoId: '',
-	bookId: initialBookId ? String(initialBookId) : '',
+	turmaId: previous.turmaId ? String(previous.turmaId) : '',
+	cursoId: previous.cursoId ? String(previous.cursoId) : '',
+	bookId: previous.bookId ? String(previous.bookId) : (initialBookId ? String(initialBookId) : ''),
 
 	init() {
+		if (this.turmaId) {
+			this.selectTurma();
+			return;
+		}
+
 		const selected = this.selectedBook;
 		if (selected) {
 			const matchingTurmas = this.filteredTurmas;
@@ -217,49 +258,27 @@ Alpine.data('reportBooksTable', (books = [], threshold = 8) => ({
 	},
 }));
 
-Alpine.data('purchaseCartForm', (catalog = [], initialItems = []) => ({
+Alpine.data('purchaseRequestForm', (catalog = [], initialBookId = '', initialCourse = '') => ({
 	catalog,
-	bookId: '',
-	quantity: 1,
-	justification: '',
-	items: initialItems,
-	itemsJson: '[]',
+	bookId: String(initialBookId || ''),
+	course: initialCourse || '',
 
-	get selectedBook() {
-		return this.catalog.find((item) => String(item.id) === String(this.bookId));
-	},
-
-	addItem() {
-		const title = this.selectedBook?.title;
-
-		if (!title || Number(this.quantity) <= 0) {
-			return;
+	init() {
+		const selected = this.catalog.find((item) => String(item.id) === this.bookId);
+		if (selected && !this.course) {
+			this.course = selected.subject;
 		}
-
-		this.items.push({
-			id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-			type: 'restock',
-			bookId: this.selectedBook?.id ?? null,
-			title,
-			quantity: Number(this.quantity),
-			justification: this.justification.trim() || 'Reposição de estoque.',
-		});
-
-		this.bookId = '';
-		this.quantity = 1;
-		this.justification = '';
 	},
 
-	removeItem(index) {
-		this.items.splice(index, 1);
+	get subjects() {
+		return [...new Set(this.catalog.map((book) => book.subject).filter(Boolean))]
+			.sort((a, b) => String(a).localeCompare(String(b), 'pt-BR'));
 	},
 
-	get totalItems() {
-		return this.items.reduce((total, item) => total + Number(item.quantity || 0), 0);
-	},
-
-	prepareSubmit() {
-		this.itemsJson = JSON.stringify(this.items);
+	get filteredBooks() {
+		return this.catalog
+			.filter((book) => !this.course || book.subject === this.course)
+			.sort((a, b) => String(a.title).localeCompare(String(b.title), 'pt-BR'));
 	},
 }));
 
@@ -334,3 +353,37 @@ Alpine.data('withdrawCartForm', (catalog = [], turmas = []) => ({
 }));
 
 Alpine.start();
+
+const scrollStorageKey = 'senai-stock-navigation-scroll';
+
+document.addEventListener('click', (event) => {
+	const link = event.target.closest('[data-preserve-scroll]');
+	if (link) {
+		const navigation = document.querySelector('[data-navigation-scroll-container]');
+		sessionStorage.setItem(scrollStorageKey, JSON.stringify({
+			navigation: navigation?.scrollTop ?? 0,
+		}));
+	}
+});
+
+window.addEventListener('pageshow', () => {
+	const storedValue = sessionStorage.getItem(scrollStorageKey);
+	if (storedValue === null) {
+		return;
+	}
+
+	sessionStorage.removeItem(scrollStorageKey);
+	let storedScroll;
+	try {
+		storedScroll = JSON.parse(storedValue);
+	} catch {
+		storedScroll = { page: Number(storedValue), height: document.documentElement.scrollHeight, navigation: 0 };
+	}
+	if (typeof storedScroll !== 'object') {
+		storedScroll = { navigation: 0 };
+	}
+	const navigation = document.querySelector('[data-navigation-scroll-container]');
+	if (navigation) {
+		navigation.scrollTop = Number(storedScroll.navigation);
+	}
+});

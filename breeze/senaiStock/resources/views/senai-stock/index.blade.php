@@ -43,7 +43,10 @@
                 return $monthNames[(int) $date->format('n')] . ' de ' . $date->format('Y');
             });
 
-        $pendingRequests = $teacherRequests->whereIn('status', ['pendente', 'aprovado', 'compra', 'compra_aprovada', 'separado_parcial']);
+        $pendingRequests = $teacherRequests
+            ->whereIn('status', ['pendente', 'aprovado', 'compra', 'compra_aprovada', 'separado_parcial'])
+            ->sortBy(fn ($item) => $item['dueDateSort'] ?? '9999-12-31 23:59:59')
+            ->values();
         $processedRequests = $teacherRequests->whereNotIn('status', ['pendente', 'aprovado', 'compra', 'compra_aprovada', 'separado_parcial']);
         $pendingApprovals = $purchaseOrders
             ->whereIn('status', ['pendente_aprovacao', 'aguardando'])
@@ -52,6 +55,7 @@
         $canView = fn (string $view) => collect($navigationItems)->contains(fn ($item) => ($item['id'] ?? null) === $view);
         $isAdmin = $employeeRole === \App\Support\EmployeeRole::COORDENADOR;
         $defaultSupplier = $suppliers->first();
+        $teacherRequestFormHasErrors = $errors->hasAny(['turma_id', 'curso_id', 'book_id', 'quantity', 'due_date', 'notes']);
         $greeting = 'Boa noite';
         $hour = now()->hour;
         if ($hour >= 5 && $hour < 12) {
@@ -320,9 +324,17 @@
                             <div class="rounded-2xl border border-blue-100 bg-white p-4">
                                 <div class="flex flex-wrap items-center justify-between gap-2">
                                     <p class="font-semibold text-gray-900">{{ $notification['title'] }}</p>
-                                    <span class="text-xs font-medium text-gray-400">{{ $notification['date'] }}</span>
+                                    <div class="flex items-center gap-3">
+                                        <span class="text-xs font-medium text-gray-400">{{ $notification['date'] }}</span>
+                                        <form method="POST" action="{{ route('stock.teacher-requests.notifications.dismiss', $notification['requestId']) }}">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="text-xs font-semibold text-blue-700 hover:text-red-700">Dispensar</button>
+                                        </form>
+                                    </div>
                                 </div>
                                 <p class="mt-1 text-sm text-gray-600">{{ $notification['message'] }}</p>
+                                <p class="mt-2 text-xs text-gray-500">Turma: {{ $notification['className'] ?? 'Não informada' }} · Curso: {{ $notification['courseName'] ?? 'Não informado' }}</p>
                                 <p class="mt-2 text-xs font-bold uppercase text-blue-700">{{ $notification['status'] ?: 'Atualização' }} · {{ $notification['protocol'] }}</p>
                             </div>
                         @endforeach
@@ -331,7 +343,7 @@
             @endif
 
             @if ($can('teacher_requests.create'))
-            <details class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 mb-8" @if ($initialRequestBookId) open @endif>
+            <details class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 mb-8" @if ($initialRequestBookId || $teacherRequestFormHasErrors || old('turma_id') || old('due_date')) open @endif>
                 <summary class="cursor-pointer list-none flex items-center justify-between gap-4">
                     <div>
                         <h2 class="text-lg font-semibold text-gray-900">{{ $employeeRole === 'Professor' ? 'Novo pedido' : 'Registrar pedido manualmente' }}</h2>
@@ -345,7 +357,7 @@
                     </div>
                     <span class="text-sm font-semibold text-red-600">Novo pedido</span>
                 </summary>
-                <form method="POST" action="{{ route('stock.teacher-requests.store') }}" class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-5" x-data="teacherRequestForm(@js($turmaOptions), @js($booksArray), @js($initialRequestBookId))" @reset="resetForm()">
+                <form method="POST" action="{{ route('stock.teacher-requests.store') }}" class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-5" x-data="teacherRequestForm(@js($turmaOptions), @js($booksArray), @js($initialRequestBookId), @js(['turmaId' => old('turma_id'), 'cursoId' => old('curso_id'), 'bookId' => old('book_id')]))" @reset="resetForm()">
                     @csrf
                     <div class="md:col-span-2">
                         <label class="block text-sm font-medium text-gray-900 mb-2">Solicitante</label>
@@ -376,7 +388,7 @@
                     @endif
                     <div>
                         <label class="block text-sm font-medium text-gray-900 mb-2">Prazo desejado</label>
-                        <input type="date" name="due_date" class="w-full rounded-xl border border-gray-100 bg-gray-50 px-4 py-3.5 text-sm focus:ring-2 focus:ring-red-500 outline-none">
+                        <input type="date" name="due_date" value="{{ old('due_date') }}" min="{{ now()->toDateString() }}" class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3.5 text-sm focus:border-red-500 focus:ring-2 focus:ring-red-500 outline-none">
                     </div>
                     <div class="md:col-span-2">
                         <label class="block text-sm font-medium text-gray-900 mb-2">Livro</label>
@@ -395,11 +407,11 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-900 mb-2">Quantidade</label>
-                        <input type="number" name="quantity" min="1" required class="w-full rounded-xl border border-gray-100 bg-gray-50 px-4 py-3.5 text-sm focus:ring-2 focus:ring-red-500 outline-none" placeholder="Ex: 20">
+                        <input type="number" name="quantity" value="{{ old('quantity') }}" min="1" required class="w-full rounded-xl border border-gray-100 bg-gray-50 px-4 py-3.5 text-sm focus:ring-2 focus:ring-red-500 outline-none" placeholder="Ex: 20">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-900 mb-2">Observacoes</label>
-                        <input type="text" name="notes" class="w-full rounded-xl border border-gray-100 bg-gray-50 px-4 py-3.5 text-sm focus:ring-2 focus:ring-red-500 outline-none" placeholder="Ex: aula pratica de quarta-feira">
+                        <label class="block text-sm font-medium text-gray-900 mb-2">Observações</label>
+                        <input type="text" name="notes" value="{{ old('notes') }}" class="w-full rounded-xl border border-gray-100 bg-gray-50 px-4 py-3.5 text-sm focus:ring-2 focus:ring-red-500 outline-none" placeholder="Ex: aula prática de quarta-feira">
                     </div>
                     <div class="md:col-span-2 flex flex-col gap-3 sm:flex-row">
                         <button type="submit" class="flex-1 rounded-xl bg-gray-900 px-4 py-3.5 text-sm font-semibold text-white hover:bg-gray-800">Adicionar a fila</button>
@@ -416,9 +428,12 @@
                         <div class="grid grid-cols-1 lg:grid-cols-12">
                             <div class="p-5 lg:col-span-3 border-b lg:border-b-0 lg:border-r border-gray-100 bg-gray-50/30">
                                 <p class="font-semibold text-gray-900">{{ $request['teacher'] }}</p>
-                                <p class="text-xs text-gray-500 mt-1">{{ $request['subject'] }}</p>
-                                <p class="text-xs text-gray-500 mt-1">{{ $request['course'] ?? 'Curso nao informado' }}</p>
-                                <p class="text-[11px] text-gray-400 mt-4">{{ $request['protocol'] ?? '#' . $request['id'] }} - {{ $request['date'] }} as {{ $request['time'] }}</p>
+                                <p class="mt-2 text-xs font-semibold text-gray-700">Turma: {{ $request['turma'] ?? 'Não informada' }}</p>
+                                <p class="mt-1 text-xs text-gray-500">Curso: {{ $request['course'] ?? $request['subject'] ?? 'Não informado' }}</p>
+                                @if (!empty($request['dueDate']))
+                                    <p class="mt-1 text-xs font-medium text-red-600">Prazo: {{ $request['dueDate'] }}</p>
+                                @endif
+                                <p class="text-[11px] text-gray-400 mt-4">{{ $request['protocol'] ?? '#' . $request['id'] }} - {{ $request['date'] }} às {{ $request['time'] }}</p>
                             </div>
                             <div class="p-5 lg:col-span-6">
                                 <h3 class="font-semibold text-gray-900 text-lg mb-2">{{ $request['title'] }}</h3>
@@ -453,9 +468,6 @@
                                 </div>
                             </div>
                             <div class="p-5 lg:col-span-3 flex flex-col gap-3 justify-center bg-gray-50/40">
-                                @if (!empty($request['email']))
-                                    <a href="mailto:{{ $request['email'] }}?subject=Sobre o pedido de material didatico: {{ $request['title'] }}" class="text-sm font-medium text-gray-600 hover:text-gray-900 bg-white border border-gray-200 px-4 py-2.5 rounded-xl text-center">E-mail</a>
-                                @endif
                                 @if ($requestMissing === 0 && in_array($request['status'], ['aprovado', 'separado_parcial'], true) && $can('teacher_requests.fulfill'))
                                     <a href="{{ route('senai.dashboard', ['view' => 'stock', 'tab' => 'saida']) }}" class="w-full text-center text-sm font-medium bg-emerald-600 text-white px-4 py-2.5 rounded-xl hover:bg-emerald-700">Registrar retirada</a>
                                 @elseif (($request['status'] ?? null) === 'pendente' && $requestMissing === 0)
@@ -488,6 +500,13 @@
                                     </form>
                                 </details>
                                 @endif
+                                @if (($request['persisted'] ?? false) && ($isAdmin || ((int) ($request['requestedBy'] ?? 0) === (int) data_get($employee, 'id') && ($request['status'] ?? null) === 'pendente')))
+                                    <form method="POST" action="{{ route('stock.teacher-requests.destroy', $request['id']) }}" onsubmit="return confirm('Excluir este pedido?');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="w-full rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-50">Excluir pedido</button>
+                                    </form>
+                                @endif
                             </div>
                         </div>
                     </div>
@@ -516,6 +535,7 @@
                                 <th class="px-6 py-4 font-medium border-r border-gray-100 text-center w-24">Qtd.</th>
                                 <th class="px-6 py-4 font-medium border-r border-gray-100 text-center w-36">Status</th>
                                 <th class="px-6 py-4 font-medium w-36">Data</th>
+                                <th class="px-6 py-4 font-medium text-right">Ação</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -541,10 +561,19 @@
                                         <span class="text-[10px] uppercase font-bold px-2 py-1 rounded border {{ $statusLabel[1] }}">{{ $statusLabel[0] }}</span>
                                     </td>
                                     <td class="px-6 py-4 text-gray-500 font-mono text-xs">{{ $request['date'] }} {{ $request['time'] }}</td>
+                                    <td class="px-6 py-4 text-right">
+                                        @if (($request['persisted'] ?? false) && ($isAdmin || ((int) ($request['requestedBy'] ?? 0) === (int) data_get($employee, 'id') && ($request['status'] ?? null) === 'pendente')))
+                                            <form method="POST" action="{{ route('stock.teacher-requests.destroy', $request['id']) }}" onsubmit="return confirm('Excluir este pedido?');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="text-xs font-semibold text-red-700 hover:text-red-900">Excluir pedido</button>
+                                            </form>
+                                        @endif
+                                    </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="{{ $employeeRole === 'Professor' ? 4 : 5 }}" class="px-6 py-10 text-center text-gray-500">Nenhum pedido encontrado.</td>
+                                    <td colspan="{{ $employeeRole === 'Professor' ? 5 : 6 }}" class="px-6 py-10 text-center text-gray-500">Nenhum pedido encontrado.</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -553,7 +582,7 @@
             </div>
         </div>
     @elseif ($activeView === 'purchases')
-        <div class="animate-in fade-in duration-500" x-data="{ tab: @js($activeTab ?? ($can('purchases.approve') ? 'aprovacoes' : ($can('purchases.create') ? 'nova' : 'historico'))) }">
+        <div class="animate-in fade-in duration-500" x-data="preservedTabs(@js($activeTab ?? ($can('purchases.approve') ? 'aprovacoes' : ($can('purchases.create') ? 'nova' : 'historico'))))">
             <div class="mb-8">
                 <h1 class="text-3xl font-semibold tracking-tight text-gray-900">Compras</h1>
                 <p class="text-gray-500 mt-1 text-base">Monte pedidos de reposição e consulte o histórico de compras.</p>
@@ -561,101 +590,56 @@
 
             <div class="flex p-1 bg-gray-100 rounded-xl mb-8 w-full sm:w-fit">
                 @if ($can('purchases.create'))
-                <button type="button" @click="tab = 'nova'" class="px-5 py-2.5 text-sm font-medium rounded-lg" :class="tab === 'nova' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'">Nova compra</button>
+                <button type="button" @click="selectTab('nova')" class="px-5 py-2.5 text-sm font-medium rounded-lg" :class="tab === 'nova' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'">Nova compra</button>
                 @endif
                 @if ($can('purchases.approve'))
-                <button type="button" @click="tab = 'aprovacoes'" class="px-5 py-2.5 text-sm font-medium rounded-lg" :class="tab === 'aprovacoes' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'">Aprovações ({{ $pendingApprovals->count() }})</button>
+                <button type="button" @click="selectTab('aprovacoes')" class="px-5 py-2.5 text-sm font-medium rounded-lg" :class="tab === 'aprovacoes' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'">Aprovações ({{ $pendingApprovals->count() }})</button>
                 @endif
-                <button type="button" @click="tab = 'historico'" class="px-5 py-2.5 text-sm font-medium rounded-lg" :class="tab === 'historico' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'">Histórico</button>
+                <button type="button" @click="selectTab('historico')" class="px-5 py-2.5 text-sm font-medium rounded-lg" :class="tab === 'historico' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'">Histórico</button>
             </div>
 
             @if ($can('purchases.create'))
-            <div x-show="tab === 'nova'" x-cloak x-data="purchaseCartForm(@js($booksArray), @js($purchaseCart))">
-
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                <div class="lg:col-span-8 space-y-6">
-                    <div class="space-y-3">
-                        <template x-for="(item, index) in items" :key="item.id">
-                            <div class="bg-white border border-gray-100 shadow-sm rounded-2xl p-4 flex flex-col sm:flex-row gap-4 sm:items-center">
-                                <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0 bg-gray-100 text-gray-600">
-                                    <span>R</span>
-                                </div>
-                                <div class="flex-1 min-w-0">
-                                    <p class="font-semibold text-gray-900 truncate" x-text="item.title"></p>
-                                    <p class="text-xs uppercase tracking-wider text-gray-400">Reposição</p>
-                                </div>
-                                <div class="flex gap-3 w-full sm:w-auto">
-                                    <input type="text" x-model="item.justification" class="w-full sm:w-80 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 outline-none" placeholder="Justificativa">
-                                    <input type="number" min="1" x-model.number="item.quantity" class="w-24 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-sm text-center focus:ring-2 focus:ring-red-500 outline-none">
-                                    <button type="button" @click="removeItem(index)" class="px-3 py-2 rounded-xl text-gray-400 hover:text-red-600 hover:bg-red-50">Remover</button>
-                                </div>
-                            </div>
-                        </template>
-
-                        <div x-show="items.length === 0" class="bg-white border border-dashed border-gray-200 rounded-2xl p-10 text-center text-gray-500">
-                            Sua lista de compras está vazia.
+            <div x-show="tab === 'nova'" x-cloak x-data="purchaseRequestForm(@js($booksArray), @js(old('book_id', request('book_id'))), @js(old('course_filter')))">
+                <form method="POST" action="{{ route('stock.purchases.generate') }}" class="mx-auto max-w-3xl rounded-3xl border border-gray-100 bg-white p-6 shadow-sm sm:p-8">
+                    @csrf
+                    <div class="mb-6">
+                        <h2 class="text-lg font-semibold text-gray-900">Registrar pedido de reposição</h2>
+                        <p class="mt-1 text-sm text-gray-500">Cada pedido de compra contém um livro para facilitar a aprovação e o recebimento.</p>
+                    </div>
+                    <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                        <div>
+                            <label class="mb-2 block text-sm font-medium text-gray-900">Curso</label>
+                            <select name="course_filter" x-model="course" @change="bookId = ''" class="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm focus:ring-2 focus:ring-red-500 outline-none">
+                                <option value="">Todos os cursos</option>
+                                <template x-for="subject in subjects" :key="subject">
+                                    <option :value="subject" x-text="subject"></option>
+                                </template>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="mb-2 block text-sm font-medium text-gray-900">Livro</label>
+                            <select name="book_id" x-model="bookId" required class="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm focus:ring-2 focus:ring-red-500 outline-none">
+                                <option value="">Selecione um livro...</option>
+                                <template x-for="book in filteredBooks" :key="book.id">
+                                    <option :value="book.id" x-text="`${book.title} (estoque: ${book.quantity})`"></option>
+                                </template>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="mb-2 block text-sm font-medium text-gray-900">Quantidade</label>
+                            <input type="number" name="quantity" value="{{ old('quantity', request('quantity', 1)) }}" min="1" required class="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm focus:ring-2 focus:ring-red-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="mb-2 block text-sm font-medium text-gray-900">Justificativa</label>
+                            <input type="text" name="justification" value="{{ old('justification', request('justification')) }}" class="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm focus:ring-2 focus:ring-red-500 outline-none" placeholder="Ex: reposição para o próximo semestre">
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="mb-2 block text-sm font-medium text-gray-900">Observação interna</label>
+                            <textarea name="notes" rows="2" class="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm focus:ring-2 focus:ring-red-500 outline-none">{{ old('notes') }}</textarea>
                         </div>
                     </div>
-
-                    <div class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 sm:p-8">
-                        <h2 class="text-lg font-semibold text-gray-900 mb-6">Adicionar à Lista Manualmente</h2>
-                        <form @submit.prevent="addItem" class="space-y-5">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-900 mb-2">Selecionar Obra</label>
-                                <select x-model="bookId" class="w-full rounded-xl border border-gray-100 bg-gray-50 px-4 py-3.5 text-sm text-gray-900 focus:ring-2 focus:ring-red-500 outline-none">
-                                    <option value="">Escolha um título cadastrado...</option>
-                                    <template x-for="book in catalog" :key="book.id">
-                                        <option :value="book.id" x-text="`${book.title} (Estoque: ${book.quantity})`"></option>
-                                    </template>
-                                </select>
-                            </div>
-
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-900 mb-2">Quantidade de Compra</label>
-                                    <input type="number" min="1" x-model.number="quantity" class="w-full rounded-xl border border-gray-100 bg-gray-50 px-4 py-3.5 text-sm text-gray-900 focus:ring-2 focus:ring-red-500 outline-none" placeholder="Ex: 50">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-900 mb-2">Justificativa</label>
-                                    <input type="text" x-model="justification" class="w-full rounded-xl border border-gray-100 bg-gray-50 px-4 py-3.5 text-sm text-gray-900 focus:ring-2 focus:ring-red-500 outline-none" placeholder="Motivo da reposição">
-                                </div>
-                            </div>
-
-                            <button type="submit" class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 font-medium text-gray-900 transition-all hover:bg-gray-50">Adicionar à Lista</button>
-                        </form>
-                    </div>
-                </div>
-
-                <div class="lg:col-span-4">
-                    <div class="sticky top-24 bg-white border border-gray-100 shadow-sm rounded-3xl p-6 sm:p-8">
-                        <h2 class="text-lg font-semibold text-gray-900 mb-6 border-b border-gray-100 pb-4">Resumo da Compra</h2>
-                        <div class="space-y-4 mb-8">
-                            <div class="flex justify-between items-center">
-                                <span class="text-gray-500">Títulos diferentes</span>
-                                <span class="font-semibold text-gray-900" x-text="items.length"></span>
-                            </div>
-                            <div class="flex justify-between items-center">
-                                <span class="text-gray-500">Total de exemplares</span>
-                                <span class="font-semibold text-gray-900 text-xl" x-text="totalItems"></span>
-                            </div>
-                        </div>
-                        <form method="POST" action="{{ route('stock.purchases.generate') }}" @submit="prepareSubmit()">
-                            @csrf
-                            <input type="hidden" name="items" x-model="itemsJson">
-                            <div class="space-y-4 mb-5">
-                                <div>
-                                    <label class="block text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">Observação interna</label>
-                                    <textarea name="notes" rows="2" class="w-full rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-sm text-gray-900 focus:ring-2 focus:ring-red-500 outline-none resize-none" placeholder="Ex: compra para início do semestre"></textarea>
-                                </div>
-                            </div>
-                            <button type="submit" class="w-full font-medium py-4 px-4 rounded-xl transition-colors flex items-center justify-center bg-gray-900 hover:bg-gray-800 text-white disabled:opacity-40" :disabled="items.length === 0">
-                                Gerar Planilha de Pedido
-                            </button>
-                        </form>
-                        <p class="text-xs text-center text-gray-400 mt-4 leading-relaxed">Ao gerar, o pedido vai para o histórico e o carrinho é limpo.</p>
-                    </div>
-                </div>
-            </div>
+                    <button type="submit" class="mt-6 w-full rounded-xl bg-gray-900 px-4 py-3.5 text-sm font-semibold text-white hover:bg-gray-800">Registrar compra</button>
+                </form>
             </div>
 
             @endif
@@ -698,6 +682,7 @@
                                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                         <div>
                                             <p class="font-semibold text-gray-900">{{ $order['orderId'] }}</p>
+                                            <p class="mt-1 text-sm font-medium text-gray-700">{{ collect($order['items'])->pluck('title')->filter()->join(', ') }}</p>
                                             <p class="text-xs text-gray-500">Em {{ $order['date'] }} às {{ $order['time'] }}</p>
                                         </div>
                                         <div class="flex flex-wrap items-center gap-2">
@@ -757,21 +742,22 @@
             </div>
         </div>
     @elseif ($activeView === 'book_registration')
-        <div class="animate-in fade-in duration-500 max-w-3xl mx-auto">
+        <div class="animate-in fade-in duration-500 max-w-4xl mx-auto">
             <div class="mb-8">
-                <h1 class="text-3xl font-semibold tracking-tight text-gray-900">Cadastrar Livro</h1>
+                <h1 class="text-3xl font-semibold tracking-tight text-gray-900">Livro</h1>
                 <p class="text-gray-500 mt-1 text-base">Inclua um novo título no catálogo e registre seu estoque inicial.</p>
             </div>
 
-            <form method="POST" action="{{ route('stock.books.store-new') }}" enctype="multipart/form-data" class="space-y-6 rounded-3xl border border-gray-100 bg-white p-6 shadow-sm sm:p-8" x-data="bookRegistrationForm()">
+            <form method="POST" action="{{ route('stock.books.store-new') }}" enctype="multipart/form-data" class="mx-auto max-w-3xl rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6" x-data="bookRegistrationForm()">
                 @csrf
-                <div>
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div class="sm:col-span-2">
                     <label class="block text-sm font-medium text-gray-900 mb-2">Título do livro</label>
-                    <input type="text" name="title" required class="w-full rounded-xl border border-gray-100 bg-gray-50 px-4 py-3.5 focus:ring-2 focus:ring-red-500 outline-none">
+                    <input type="text" name="title" required class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm focus:ring-2 focus:ring-red-500 outline-none">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-900 mb-2">Curso / Área</label>
-                    <input type="text" name="subject" list="course-options" required class="w-full rounded-xl border border-gray-100 bg-gray-50 px-4 py-3.5 focus:ring-2 focus:ring-red-500 outline-none" placeholder="Digite para buscar um curso cadastrado">
+                    <input type="text" name="subject" list="course-options" required class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm focus:ring-2 focus:ring-red-500 outline-none" placeholder="Busque um curso">
                     <datalist id="course-options">
                         @foreach ($cursos as $curso)
                             <option value="{{ $curso->nome_curso }}"></option>
@@ -780,29 +766,87 @@
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-900 mb-2">ISBN (opcional)</label>
-                    <input type="text" name="isbn" x-model="isbn" @input="maskIsbn()" inputmode="numeric" class="w-full rounded-xl border border-gray-100 bg-gray-50 px-4 py-3.5 focus:ring-2 focus:ring-red-500 outline-none" placeholder="Somente números e hífens">
+                    <input type="text" name="isbn" x-model="isbn" @input="maskIsbn()" inputmode="numeric" class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm focus:ring-2 focus:ring-red-500 outline-none" placeholder="Somente números e hífens">
                 </div>
-                <div>
+                <div class="sm:col-span-2">
                     <label class="block text-sm font-medium text-gray-900 mb-2">Descrição</label>
-                    <textarea name="description" rows="3" class="w-full rounded-xl border border-gray-100 bg-gray-50 px-4 py-3.5 focus:ring-2 focus:ring-red-500 outline-none resize-none"></textarea>
+                    <textarea name="description" rows="2" class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm focus:ring-2 focus:ring-red-500 outline-none resize-none"></textarea>
+                </div>
+                <div class="sm:col-span-2">
+                    <label class="block text-sm font-medium text-gray-900 mb-2">Imagem da capa (opcional)</label>
+                    <input type="file" name="image" accept="image/*" class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-gray-900 file:px-3 file:py-1.5 file:font-semibold file:text-white">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-900 mb-2">Imagem da capa (opcional)</label>
-                    <input type="file" name="image" accept="image/*" class="w-full rounded-xl border border-gray-100 bg-gray-50 px-4 py-3.5 text-sm file:mr-4 file:rounded-lg file:border-0 file:bg-gray-900 file:px-4 file:py-2 file:font-semibold file:text-white">
-                    <p class="mt-2 text-xs text-gray-500">PNG, JPG ou WEBP de até 4 MB.</p>
-                </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div>
                         <label class="block text-sm font-medium text-gray-900 mb-2">Estoque inicial</label>
-                        <input type="number" name="quantity" min="1" required class="w-full rounded-xl border border-gray-100 bg-gray-50 px-4 py-3.5 focus:ring-2 focus:ring-red-500 outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-900 mb-2">Estoque mínimo</label>
-                        <input type="number" name="minimum_stock" min="1" value="{{ $stockCriticalThreshold }}" class="w-full rounded-xl border border-gray-100 bg-gray-50 px-4 py-3.5 focus:ring-2 focus:ring-red-500 outline-none">
-                    </div>
+                        <input type="number" name="quantity" min="1" required class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm focus:ring-2 focus:ring-red-500 outline-none">
                 </div>
-                <button type="submit" class="w-full rounded-xl bg-gray-900 px-4 py-4 font-semibold text-white hover:bg-gray-800">Cadastrar livro</button>
+                <div>
+                        <label class="block text-sm font-medium text-gray-900 mb-2">Estoque mínimo</label>
+                        <input type="number" name="minimum_stock" min="1" value="{{ $stockCriticalThreshold }}" class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm focus:ring-2 focus:ring-red-500 outline-none">
+                </div>
+                <button type="submit" class="sm:col-span-2 w-full rounded-xl bg-gray-900 px-4 py-3 text-sm font-semibold text-white hover:bg-gray-800">Cadastrar livro</button>
+                </div>
             </form>
+
+            <div class="mt-10 overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm" x-data="bookEditTable()">
+                <div class="flex flex-col gap-3 border-b border-gray-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <h2 class="text-xl font-semibold text-gray-900">Livros cadastrados</h2>
+                        <p class="mt-1 text-sm text-gray-500">Localize um livro e abra sua linha para editar.</p>
+                    </div>
+                    <input type="search" x-model="query" class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 outline-none sm:w-64" placeholder="Buscar livro">
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm whitespace-nowrap">
+                        <thead class="bg-gray-50/80 text-gray-500">
+                            <tr>
+                                <th class="px-4 py-3 font-medium">Livro</th>
+                                <th class="px-4 py-3 font-medium">Área</th>
+                                <th class="px-4 py-3 font-medium text-right">Estoque</th>
+                                <th class="px-4 py-3 font-medium text-right">Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse ($booksArray as $book)
+                                <tr x-show="matches(@js($book))" class="border-t border-gray-100 hover:bg-gray-50/70">
+                                    <td class="max-w-xs truncate px-4 py-3 font-semibold text-gray-900">{{ $book['title'] }}</td>
+                                    <td class="max-w-40 truncate px-4 py-3 text-gray-600">{{ $book['subject'] }}</td>
+                                    <td class="px-4 py-3 text-right font-semibold text-gray-900">{{ $book['quantity'] }}</td>
+                                    <td class="px-4 py-3 text-right">
+                                        <button type="button" @click="toggle({{ $book['id'] }})" class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100" x-text="String(selectedId) === '{{ $book['id'] }}' ? 'Fechar' : 'Editar'"></button>
+                                    </td>
+                                </tr>
+                                <tr x-show="matches(@js($book)) && String(selectedId) === '{{ $book['id'] }}'" x-cloak class="border-t border-gray-100 bg-gray-50/70">
+                                    <td colspan="4" class="p-4">
+                                        <form method="POST" action="{{ route('stock.books.update', $book['id']) }}" enctype="multipart/form-data" class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                            @csrf
+                                            @method('PUT')
+                                            <input type="text" name="title" value="{{ $book['title'] }}" required class="rounded-xl border border-gray-300 bg-white px-4 py-3" aria-label="Título">
+                                            <input type="text" name="isbn" value="{{ $book['isbn'] }}" class="rounded-xl border border-gray-300 bg-white px-4 py-3" placeholder="ISBN">
+                                            <input type="text" name="subject" value="{{ $book['subject'] }}" list="course-options" required class="rounded-xl border border-gray-300 bg-white px-4 py-3" aria-label="Curso ou área">
+                                            <input type="number" name="minimum_stock" value="{{ $book['minimumStock'] }}" min="1" required class="rounded-xl border border-gray-300 bg-white px-4 py-3" aria-label="Estoque mínimo">
+                                            <select name="status" class="rounded-xl border border-gray-300 bg-white px-4 py-3" aria-label="Status">
+                                                <option value="ativo" @selected($book['status'] === 'ativo')>Ativo</option>
+                                                <option value="inativo" @selected($book['status'] === 'inativo')>Inativo</option>
+                                            </select>
+                                            <input type="file" name="image" accept="image/*" class="rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm" aria-label="Nova imagem da capa">
+                                            <textarea name="description" rows="3" class="rounded-xl border border-gray-300 bg-white px-4 py-3 md:col-span-2" aria-label="Descrição">{{ $book['desc'] }}</textarea>
+                                            <button type="submit" class="rounded-xl bg-gray-900 px-4 py-3 text-sm font-semibold text-white">Salvar alterações</button>
+                                        </form>
+                                        <form method="POST" action="{{ route('stock.books.destroy', $book['id']) }}" class="mt-3" onsubmit="return confirm('Excluir este livro? O histórico relacionado também poderá ser removido.');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">Excluir livro</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr><td colspan="4" class="px-6 py-10 text-center text-gray-500">Nenhum livro cadastrado.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     @elseif ($activeView === 'library')
         <div class="animate-in fade-in duration-500" x-data="libraryBrowser(@js($booksArray), {{ $stockCriticalThreshold }})">
@@ -811,9 +855,10 @@
                 <p class="text-gray-500 mt-1 text-base">Navegue pelo acervo por área e registre entradas ou saídas.</p>
             </div>
 
-            <div x-show="selectedBook" x-cloak class="mb-10 grid grid-cols-1 lg:grid-cols-12 gap-6 rounded-[28px] border border-gray-100 bg-white p-6 shadow-sm">
+            <div id="book-details" x-show="selectedBook" x-cloak class="scroll-mt-6 mb-10 grid grid-cols-1 lg:grid-cols-12 gap-6 rounded-[28px] border border-gray-100 bg-white p-6 shadow-sm">
                 <div class="lg:col-span-4">
-                    <img x-show="selectedBook?.imageUrl" :src="selectedBook?.imageUrl" :alt="selectedBook?.title" class="aspect-[3/4] w-full rounded-3xl object-cover">
+                    <h2 class="mb-4 text-2xl font-semibold tracking-tight text-gray-900 lg:hidden" x-text="selectedBook?.title"></h2>
+                    <img x-show="selectedBook?.imageUrl" :src="selectedBook?.imageUrl" :alt="selectedBook?.title" class="mx-auto max-h-[26rem] w-full rounded-3xl bg-gray-50 object-contain">
                     <div x-show="!selectedBook?.imageUrl" class="aspect-[3/4] rounded-3xl bg-gradient-to-br from-gray-100 to-gray-200 p-6 flex flex-col justify-between">
                         <span class="text-xs font-bold uppercase tracking-widest text-gray-500" x-text="selectedBook?.subject"></span>
                         <div>
@@ -824,20 +869,20 @@
                 </div>
                 <div class="lg:col-span-5">
                     <p class="text-sm font-semibold uppercase tracking-wide text-gray-400">Detalhes do material</p>
-                    <h2 class="mt-2 text-3xl font-semibold tracking-tight text-gray-900" x-text="selectedBook?.title"></h2>
+                    <h2 class="mt-2 hidden text-3xl font-semibold tracking-tight text-gray-900 lg:block" x-text="selectedBook?.title"></h2>
                     <p class="mt-4 text-gray-600 leading-relaxed" x-text="selectedBook?.desc"></p>
                     <dl class="mt-6 grid grid-cols-2 gap-4 text-sm">
                         <div><dt class="text-gray-400">ISBN</dt><dd class="font-semibold text-gray-900" x-text="selectedBook?.isbn"></dd></div>
                         <div><dt class="text-gray-400">Ano</dt><dd class="font-semibold text-gray-900" x-text="selectedBook?.year"></dd></div>
                         <div><dt class="text-gray-400">Editora</dt><dd class="font-semibold text-gray-900" x-text="selectedBook?.publisher"></dd></div>
-                        <div><dt class="text-gray-400">Paginas</dt><dd class="font-semibold text-gray-900" x-text="selectedBook?.pages"></dd></div>
+                        <div><dt class="text-gray-400">Páginas</dt><dd class="font-semibold text-gray-900" x-text="selectedBook?.pages"></dd></div>
                     </dl>
                 </div>
                 <div class="lg:col-span-3">
                     <div class="rounded-3xl border border-gray-100 bg-gray-50 p-5">
                         <p class="text-sm text-gray-500">Saldo atual</p>
                         <p class="mt-1 text-4xl font-semibold text-gray-900" x-text="selectedBook?.quantity"></p>
-                        <p class="mt-2 text-xs font-bold uppercase" :class="isCritical(selectedBook) ? 'text-red-600' : 'text-emerald-600'" x-text="isCritical(selectedBook) ? 'Estoque critico' : 'Estoque adequado'"></p>
+                        <p class="mt-2 text-xs font-bold uppercase" :class="isCritical(selectedBook) ? 'text-red-600' : 'text-emerald-600'" x-text="isCritical(selectedBook) ? 'Estoque crítico' : 'Estoque adequado'"></p>
                         @if ($employeeRole === 'Professor' || $can('stock.withdraw') || $can('purchases.create'))
                         <div class="mt-6 space-y-3">
                             @if ($can('teacher_requests.create'))
@@ -961,16 +1006,16 @@
             </div>
         </div>
     @elseif ($activeView === 'stock')
-        <div class="animate-in fade-in duration-500" x-data="{ tab: @js($activeTab ?? 'entrada') }">
+        <div class="animate-in fade-in duration-500" x-data="preservedTabs(@js($activeTab ?? 'entrada'))">
             <div class="mb-8">
                 <h1 class="text-3xl font-semibold tracking-tight text-gray-900">Entrada e Saída</h1>
                 <p class="text-gray-500 mt-1 text-base">Registre recebimentos, retiradas para turmas e consulte o histórico de movimentações.</p>
             </div>
 
             <div class="flex p-1 bg-gray-100 rounded-xl mb-8 w-full sm:w-fit">
-                <button type="button" @click="tab = 'entrada'" class="px-5 py-2.5 text-sm font-medium rounded-lg" :class="tab === 'entrada' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'">Entrada</button>
-                <button type="button" @click="tab = 'saida'" class="px-5 py-2.5 text-sm font-medium rounded-lg" :class="tab === 'saida' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'">Saída</button>
-                <button type="button" @click="tab = 'historico'" class="px-5 py-2.5 text-sm font-medium rounded-lg" :class="tab === 'historico' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'">Histórico</button>
+                <button type="button" @click="selectTab('entrada')" class="px-5 py-2.5 text-sm font-medium rounded-lg" :class="tab === 'entrada' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'">Entrada</button>
+                <button type="button" @click="selectTab('saida')" class="px-5 py-2.5 text-sm font-medium rounded-lg" :class="tab === 'saida' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'">Saída</button>
+                <button type="button" @click="selectTab('historico')" class="px-5 py-2.5 text-sm font-medium rounded-lg" :class="tab === 'historico' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'">Histórico</button>
             </div>
 
             <div x-show="tab === 'entrada'" x-cloak class="max-w-3xl mx-auto space-y-6">
@@ -986,7 +1031,7 @@
                     <div class="mt-5 space-y-4">
                         @foreach ($ordersToReceive as $order)
                             @foreach (collect($order['items'])->where('remainingQty', '>', 0) as $item)
-                                <form method="POST" action="{{ route('stock.purchases.items.receive', [$order['id'], $item['id']]) }}" class="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                                <form method="POST" action="{{ route('stock.purchases.items.receive', [$order['id'], $item['id']]) }}" class="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4">
                                     @csrf
                                     <div class="flex flex-col gap-4 sm:flex-row sm:items-end">
                                         <div class="flex-1">
@@ -995,7 +1040,7 @@
                                         </div>
                                         <div>
                                             <label class="mb-1 block text-xs font-semibold text-gray-500">Quantidade recebida</label>
-                                            <input type="number" name="quantity" min="1" max="{{ $item['remainingQty'] }}" required class="w-full rounded-xl border border-gray-100 bg-gray-50 px-4 py-3.5 text-sm text-gray-900 focus:ring-2 focus:ring-red-500 outline-none sm:w-40">
+                                            <input type="number" name="quantity" min="1" max="{{ $item['remainingQty'] }}" required class="w-full rounded-xl border-2 border-emerald-300 bg-white px-4 py-3.5 text-sm text-gray-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 outline-none sm:w-40">
                                         </div>
                                         <button type="submit" class="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-700">Registrar entrada</button>
                                     </div>
@@ -1023,19 +1068,19 @@
                     <div class="mt-5 space-y-4">
                         @foreach ($requestsToFulfill as $request)
                             @php $maxFulfill = min((int) $request['remaining'], (int) $request['available']); @endphp
-                            <form method="POST" action="{{ route('stock.teacher-requests.fulfill', $request['id']) }}" class="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                            <form method="POST" action="{{ route('stock.teacher-requests.fulfill', $request['id']) }}" class="rounded-2xl border border-red-200 bg-red-50/40 p-4">
                                 @csrf
                                 <div class="flex flex-col gap-4 sm:flex-row sm:items-end">
                                     <div class="flex-1">
                                         <p class="font-semibold text-gray-900">{{ $request['title'] }}</p>
                                         <p class="text-xs text-gray-500">{{ $request['teacher'] }} · {{ $request['turma'] }} · restante: {{ $request['remaining'] }} un</p>
                                         <p class="mt-1 text-xs font-medium {{ $maxFulfill > 0 ? 'text-emerald-700' : 'text-amber-700' }}">
-                                            {{ $maxFulfill > 0 ? $maxFulfill . ' un disponivel(is) para retirada agora' : 'Aguardando entrada de estoque' }}
+                                            {{ $maxFulfill > 0 ? $maxFulfill . ' un disponível(is) para retirada agora' : 'Aguardando entrada de estoque' }}
                                         </p>
                                     </div>
                                     <div>
                                         <label class="mb-1 block text-xs font-semibold text-gray-500">Quantidade retirada</label>
-                                        <input type="number" name="quantity" min="1" max="{{ $maxFulfill }}" required @disabled($maxFulfill < 1) class="w-full rounded-xl border border-gray-100 bg-gray-50 px-4 py-3.5 text-sm text-gray-900 focus:ring-2 focus:ring-red-500 outline-none disabled:opacity-50 sm:w-40">
+                                        <input type="number" name="quantity" min="1" max="{{ $maxFulfill }}" required @disabled($maxFulfill < 1) class="w-full rounded-xl border-2 border-red-300 bg-white px-4 py-3.5 text-sm text-gray-900 focus:border-red-500 focus:ring-2 focus:ring-red-500 outline-none disabled:opacity-50 sm:w-40">
                                     </div>
                                     <button type="submit" @disabled($maxFulfill < 1) class="rounded-xl bg-red-600 px-5 py-3 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-40">Registrar saída</button>
                                 </div>
@@ -1206,7 +1251,7 @@
     @elseif ($activeView === 'courses')
         <div class="animate-in fade-in duration-500 max-w-4xl">
             <div class="mb-8">
-                <h1 class="text-3xl font-semibold tracking-tight text-gray-900">Cadastrar Curso</h1>
+                <h1 class="text-3xl font-semibold tracking-tight text-gray-900">Curso</h1>
                 <p class="text-gray-500 mt-1 text-base">Crie as áreas usadas para relacionar livros e turmas.</p>
             </div>
 
@@ -1233,9 +1278,19 @@
                 </div>
                 <div class="grid grid-cols-1 gap-3 p-6 sm:grid-cols-2">
                     @forelse ($cursos as $curso)
-                        <div class="rounded-2xl border border-gray-100 bg-gray-50 p-4">
-                            <p class="font-semibold text-gray-900">{{ $curso->nome_curso }}</p>
-                            <p class="mt-1 text-xs text-gray-500">{{ $curso->turmas_count ?? $turmas->where('curso_id', $curso->id)->count() }} turma(s)</p>
+                        <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                            <form method="POST" action="{{ route('stock.courses.update', $curso) }}" class="space-y-3">
+                                @csrf
+                                @method('PUT')
+                                <input type="text" name="nome_curso" value="{{ $curso->nome_curso }}" required class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 font-semibold text-gray-900">
+                                <p class="text-xs text-gray-500">{{ $curso->turmas_count ?? $turmas->where('curso_id', $curso->id)->count() }} turma(s)</p>
+                                <button type="submit" class="rounded-lg bg-gray-900 px-3 py-2 text-xs font-semibold text-white">Salvar</button>
+                            </form>
+                            <form method="POST" action="{{ route('stock.courses.destroy', $curso) }}" class="mt-2" onsubmit="return confirm('Excluir este curso?');">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">Excluir</button>
+                            </form>
                         </div>
                     @empty
                         <p class="text-sm text-gray-500">Nenhum curso cadastrado.</p>
@@ -1275,33 +1330,43 @@
             </div>
             @endif
 
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div class="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm">
-                    <p class="text-sm text-gray-500 font-medium">Turmas cadastradas</p>
-                    <p class="mt-2 text-4xl font-semibold text-gray-900">{{ $turmas->count() }}</p>
+            <div class="mb-6 flex flex-wrap gap-3">
+                <div class="inline-flex items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
+                    <span class="text-2xl font-semibold text-gray-900">{{ $turmas->count() }}</span>
+                    <span class="text-sm font-medium text-gray-500">turmas cadastradas</span>
                 </div>
-                <div class="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm">
-                    <p class="text-sm text-gray-500 font-medium">Cursos</p>
-                    <p class="mt-2 text-4xl font-semibold text-gray-900">{{ $turmas->pluck('curso_id')->unique()->count() }}</p>
+                <div class="inline-flex items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
+                    <span class="text-2xl font-semibold text-gray-900">{{ $turmas->pluck('curso_id')->unique()->count() }}</span>
+                    <span class="text-sm font-medium text-gray-500">cursos com turmas</span>
                 </div>
-                <a href="{{ route('senai.dashboard', ['view' => 'stock', 'tab' => 'saida']) }}" class="bg-red-50 rounded-3xl border border-red-100 p-6 hover:bg-red-100/60 transition">
-                    <p class="text-sm text-red-700 font-medium">Ação rápida</p>
-                    <p class="mt-2 text-xl font-semibold text-red-700">Registrar retirada</p>
-                </a>
             </div>
 
-            <div class="space-y-6">
+            <div class="space-y-4">
                 @forelse ($turmas->groupBy(fn ($turma) => $turma->curso?->nome_curso ?? 'Sem curso') as $courseName => $courseClasses)
-                    <section class="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm">
-                        <div class="flex items-center justify-between mb-5">
-                            <h2 class="text-lg font-semibold text-gray-900">{{ $courseName }}</h2>
-                            <span class="text-sm font-medium text-gray-400">{{ $courseClasses->count() }} turma(s)</span>
+                    <section class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+                        <div class="flex items-center justify-between border-b border-gray-100 bg-gray-50/70 px-4 py-3">
+                            <h2 class="text-sm font-semibold text-gray-900">{{ $courseName }}</h2>
+                            <span class="text-xs font-medium text-gray-400">{{ $courseClasses->count() }} turma(s)</span>
                         </div>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        <div class="divide-y divide-gray-100">
                             @foreach ($courseClasses as $turma)
-                                <div class="rounded-2xl bg-gray-50 border border-gray-100 p-4">
-                                    <p class="font-semibold text-gray-900">{{ $turma->nome_turma }}</p>
-                                    <p class="text-xs text-gray-500 mt-1">Destino disponível para retirada em lote</p>
+                                <div class="flex flex-col gap-2 px-4 py-3 md:flex-row md:items-center">
+                                    <form method="POST" action="{{ route('stock.classes.update', $turma) }}" class="grid flex-1 grid-cols-1 gap-2 sm:grid-cols-[minmax(10rem,1fr)_minmax(12rem,1fr)_auto]">
+                                        @csrf
+                                        @method('PUT')
+                                        <input type="text" name="nome_turma" value="{{ $turma->nome_turma }}" required class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-900">
+                                        <select name="curso_id" required class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm">
+                                            @foreach ($cursos as $curso)
+                                                <option value="{{ $curso->id }}" @selected($curso->id === $turma->curso_id)>{{ $curso->nome_curso }}</option>
+                                            @endforeach
+                                        </select>
+                                        <button type="submit" class="rounded-lg bg-gray-900 px-3 py-2 text-xs font-semibold text-white">Salvar</button>
+                                    </form>
+                                    <form method="POST" action="{{ route('stock.classes.destroy', $turma) }}" onsubmit="return confirm('Excluir esta turma?');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="w-full rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50">Excluir</button>
+                                    </form>
                                 </div>
                             @endforeach
                         </div>
@@ -1320,9 +1385,7 @@
                 </div>
                 @if ($can('people.manage'))
                 <div class="flex gap-3">
-                    <button type="button" onclick="history.back()" class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50">Voltar</button>
                     <a href="{{ route('funcionarios.create') }}" class="rounded-xl bg-gray-900 px-4 py-3 text-sm font-semibold text-white hover:bg-gray-800">Novo funcionário</a>
-                    <a href="{{ route('funcionarios.index') }}" class="rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50">Gerenciar funcionários</a>
                 </div>
                 @endif
             </div>
@@ -1367,10 +1430,34 @@
                         <tbody>
                             @forelse ($funcionarios as $funcionario)
                                 <tr class="border-t border-gray-50 hover:bg-gray-50/60" x-show="(role === 'todos' || role === @js($funcionario->cargo?->Nome_cargo)) && (@js(strtolower($funcionario->Nome.' '.$funcionario->NIF)).includes(search.toLowerCase()))">
-                                    <td class="px-6 py-4 font-semibold text-gray-900">{{ $funcionario->Nome }}</td>
-                                    <td class="px-6 py-4 text-gray-600">{{ $funcionario->NIF }}</td>
-                                    <td class="px-6 py-4 text-gray-600">{{ $funcionario->cargo?->Nome_cargo ?? 'Sem cargo' }}</td>
-                                    <td class="px-6 py-4 text-right"><a href="{{ route('funcionarios.edit', $funcionario) }}" class="text-sm font-semibold text-blue-700 hover:text-blue-800">Editar</a></td>
+                                    @php $employeeFormId = 'employee-' . $funcionario->Id_funcionario; @endphp
+                                    <td class="px-4 py-3">
+                                        <input form="{{ $employeeFormId }}" type="text" name="Nome" value="{{ $funcionario->Nome }}" required class="w-full min-w-40 rounded-lg border border-gray-200 bg-white px-3 py-2 font-semibold text-gray-900">
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <input form="{{ $employeeFormId }}" type="number" name="NIF" value="{{ $funcionario->NIF }}" required class="w-28 rounded-lg border border-gray-200 bg-white px-3 py-2 text-gray-700">
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <select form="{{ $employeeFormId }}" name="Id_cargo_FK" required class="min-w-36 rounded-lg border border-gray-200 bg-white px-3 py-2 text-gray-700">
+                                            @foreach ($cargos->whereIn('Nome_cargo', ['Coordenador', 'Professor']) as $cargo)
+                                                <option value="{{ $cargo->Id_cargo }}" @selected($cargo->Id_cargo === $funcionario->Id_cargo_FK)>{{ $cargo->Nome_cargo }}</option>
+                                            @endforeach
+                                        </select>
+                                    </td>
+                                    <td class="px-4 py-3 text-right">
+                                        <div class="flex justify-end gap-2">
+                                            <form id="{{ $employeeFormId }}" method="POST" action="{{ route('funcionarios.update', $funcionario) }}">
+                                                @csrf
+                                                @method('PUT')
+                                                <button type="submit" class="rounded-lg bg-gray-900 px-3 py-2 text-xs font-semibold text-white">Salvar</button>
+                                            </form>
+                                            <form method="POST" action="{{ route('funcionarios.destroy', $funcionario) }}" onsubmit="return confirm('Excluir este funcionário?');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">Excluir</button>
+                                            </form>
+                                        </div>
+                                    </td>
                                 </tr>
                             @empty
                                 <tr>

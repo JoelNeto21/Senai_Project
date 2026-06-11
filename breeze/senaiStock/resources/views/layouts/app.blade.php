@@ -33,7 +33,7 @@
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
     <body class="font-sans antialiased bg-[#F5F5F7] text-gray-900">
-        <div x-data="{ mobileMenuOpen: false }" class="min-h-screen flex flex-col md:flex-row selection:bg-red-100 selection:text-red-900">
+        <div x-data="{ mobileMenuOpen: false, passwordOpen: @js($errors->has('current_password') || $errors->has('password')) }" class="min-h-screen flex flex-col md:flex-row selection:bg-red-100 selection:text-red-900">
             <header class="md:hidden bg-white/85 backdrop-blur-md sticky top-0 border-b border-gray-100 px-4 py-3 flex items-center justify-between z-30">
                 <div class="flex items-center font-semibold text-gray-900 tracking-tight">
                     <div class="w-8 h-8 bg-red-600 rounded-lg flex items-center justify-center mr-2">
@@ -61,7 +61,7 @@
                     <span class="text-xl font-semibold text-gray-900 tracking-tight">SenaiStock</span>
                 </div>
 
-                <div class="px-4 flex-1 overflow-y-auto pb-4">
+                <div data-navigation-scroll-container class="px-4 flex-1 overflow-y-auto pb-4">
                     <nav class="space-y-6">
                         @foreach ($groupedNavigationItems as $group => $items)
                             <div>
@@ -82,6 +82,7 @@
 
                                         <a
                                             href="{{ route('senai.dashboard', ['view' => $item['id']]) }}"
+                                            data-preserve-scroll
                                             class="w-full flex items-center justify-between px-3 py-2.5 rounded-2xl transition-all duration-200 {{ $isActive ? 'bg-gray-100 text-gray-900 font-semibold' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900' }}"
                                         >
                                             <span class="flex items-center min-w-0">
@@ -113,13 +114,17 @@
                             </div>
                         </div>
                     </div>
-                    <form method="POST" action="{{ route('employee.logout') }}">
-                        @csrf
-                        <button type="submit" class="w-full flex items-center justify-center px-4 py-3 text-sm font-medium text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-colors">
-                            <span class="mr-2">⎋</span>
-                            Encerrar Sessão
+                    <div class="grid grid-cols-2 gap-2">
+                        <button type="button" @click="passwordOpen = true" class="flex items-center justify-center rounded-xl px-3 py-3 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900">
+                            Alterar senha
                         </button>
-                    </form>
+                        <form method="POST" action="{{ route('employee.logout') }}">
+                            @csrf
+                            <button type="submit" class="w-full flex items-center justify-center px-3 py-3 text-sm font-medium text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-colors">
+                                Encerrar sessão
+                            </button>
+                        </form>
+                    </div>
                 </div>
             </aside>
 
@@ -138,6 +143,37 @@
 
                 {{ $slot }}
             </main>
+
+            <div x-show="passwordOpen" x-cloak class="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm" @keydown.escape.window="passwordOpen = false">
+                <div class="w-full max-w-md rounded-3xl border border-gray-100 bg-white p-6 shadow-xl" @click.outside="passwordOpen = false">
+                    <div class="flex items-start justify-between gap-4">
+                        <div>
+                            <h2 class="text-xl font-semibold text-gray-900">Alterar senha</h2>
+                            <p class="mt-1 text-sm text-gray-500">Confirme sua senha atual e escolha uma nova.</p>
+                        </div>
+                        <button type="button" @click="passwordOpen = false" class="rounded-lg px-2 py-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700">Fechar</button>
+                    </div>
+                    <form method="POST" action="{{ route('employee.password.update') }}" class="mt-6 space-y-4">
+                        @csrf
+                        @method('PUT')
+                        <div>
+                            <label for="current_password" class="mb-2 block text-sm font-medium text-gray-900">Senha atual</label>
+                            <input id="current_password" name="current_password" type="password" required autocomplete="current-password" class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500">
+                            @error('current_password') <p class="mt-2 text-sm text-red-600">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label for="new_employee_password" class="mb-2 block text-sm font-medium text-gray-900">Nova senha</label>
+                            <input id="new_employee_password" name="password" type="password" required autocomplete="new-password" class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500">
+                            @error('password') <p class="mt-2 text-sm text-red-600">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label for="new_employee_password_confirmation" class="mb-2 block text-sm font-medium text-gray-900">Confirmar nova senha</label>
+                            <input id="new_employee_password_confirmation" name="password_confirmation" type="password" required autocomplete="new-password" class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500">
+                        </div>
+                        <button type="submit" class="w-full rounded-xl bg-gray-900 px-4 py-3 text-sm font-semibold text-white hover:bg-gray-800">Salvar nova senha</button>
+                    </form>
+                </div>
+            </div>
         </div>
     </body>
 </html>

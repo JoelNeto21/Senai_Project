@@ -11,8 +11,8 @@ return [
         ['id' => 'reports', 'label' => 'Relatórios', 'icon' => 'R', 'group' => 'Livros'],
         ['id' => 'purchases', 'label' => 'Compras', 'icon' => 'C', 'group' => 'Compras'],
         ['id' => 'classes', 'label' => 'Turmas', 'icon' => 'T', 'group' => 'Escola'],
-        ['id' => 'courses', 'label' => 'Cadastrar Curso', 'icon' => '+', 'group' => 'Escola'],
-        ['id' => 'book_registration', 'label' => 'Cadastrar Livro', 'icon' => '+', 'group' => 'Escola'],
+        ['id' => 'courses', 'label' => 'Curso', 'icon' => '+', 'group' => 'Escola'],
+        ['id' => 'book_registration', 'label' => 'Livro', 'icon' => '+', 'group' => 'Escola'],
         ['id' => 'people', 'label' => 'Equipe', 'icon' => 'E', 'group' => 'Escola'],
     ],
 
