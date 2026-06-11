@@ -26,6 +26,12 @@
                 <form method="POST" action="{{ route('employee.authenticate') }}" class="bg-white rounded-3xl border border-gray-100 shadow-sm p-8 space-y-6">
                     @csrf
 
+                    @if (session('status'))
+                        <div class="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-800">
+                            {{ session('status') }}
+                        </div>
+                    @endif
+
                     <div>
                         <label for="nif" class="block text-sm font-medium text-gray-900 mb-2">NIF do Funcionário</label>
                         <input
@@ -59,8 +65,12 @@
                         Entrar
                     </button>
 
-                    <p class="text-xs text-center text-gray-400 pt-2">
+                    <p class="hidden">
                         Todos os funcionários cadastrados podem entrar com seu perfil.
+                    </p>
+                    <p class="text-sm text-center text-gray-500">
+                        Professor sem conta?
+                        <a href="{{ route('employee.register') }}" class="font-semibold text-gray-900 hover:text-red-600">Cadastre-se</a>
                     </p>
                 </form>
             </div>

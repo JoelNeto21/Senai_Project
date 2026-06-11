@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\CargoController;
 use App\Http\Controllers\EmployeeAuthController;
+use App\Http\Controllers\EmployeeRegistrationController;
 use App\Http\Controllers\FuncionarioController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SenaiStockController;
@@ -19,6 +20,8 @@ Route::get('/', function (Request $request) {
 
 Route::get('/entrada', [EmployeeAuthController::class, 'create'])->name('employee.login');
 Route::post('/entrada', [EmployeeAuthController::class, 'store'])->name('employee.authenticate');
+Route::get('/cadastro', [EmployeeRegistrationController::class, 'create'])->name('employee.register');
+Route::post('/cadastro', [EmployeeRegistrationController::class, 'store'])->name('employee.register.store');
 Route::post('/sair', [EmployeeAuthController::class, 'destroy'])->name('employee.logout');
 
 Route::middleware('employee.auth')->group(function () {
@@ -26,7 +29,7 @@ Route::middleware('employee.auth')->group(function () {
         ->name('dashboard');
 
     Route::get('/dashboard/{view}', [SenaiStockController::class, 'index'])
-        ->whereIn('view', ['insights', 'overview', 'teacher_requests', 'purchases', 'history', 'dashboard', 'library', 'receive', 'withdraw', 'movements', 'stock', 'reports', 'alerts', 'suppliers', 'classes', 'people'])
+        ->whereIn('view', ['insights', 'overview', 'teacher_requests', 'purchases', 'history', 'dashboard', 'library', 'book_registration', 'receive', 'withdraw', 'movements', 'stock', 'reports', 'alerts', 'suppliers', 'classes', 'courses', 'people'])
         ->name('senai.dashboard');
 
     Route::post('/estoque/livros/{book}/receber', [SenaiStockController::class, 'receiveExisting'])
@@ -68,10 +71,12 @@ Route::middleware('employee.auth')->group(function () {
         ->name('stock.alerts.purchase');
     Route::post('/estoque/turmas', [SenaiStockController::class, 'storeTurma'])
         ->name('stock.classes.store');
+    Route::post('/estoque/cursos', [SenaiStockController::class, 'storeCurso'])
+        ->name('stock.courses.store');
 
     Route::middleware('employee.role:Coordenador')->group(function () {
         Route::resource('funcionarios', FuncionarioController::class);
-        Route::resource('cargos', CargoController::class)->only(['index', 'store', 'destroy']);
+        Route::resource('cargos', CargoController::class)->only(['index']);
     });
 
     Route::prefix('api')->group(function () {

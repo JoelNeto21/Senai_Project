@@ -5,14 +5,14 @@ return [
 
     'navigation_items' => [
         ['id' => 'insights', 'label' => 'Início', 'icon' => '⌂', 'group' => 'Painel'],
-        ['id' => 'alerts', 'label' => 'Alertas', 'icon' => '!', 'group' => 'Painel'],
-        ['id' => 'teacher_requests', 'label' => 'Pedidos de Professores', 'icon' => 'P', 'group' => 'Painel'],
+        ['id' => 'teacher_requests', 'label' => 'Pedidos', 'icon' => 'P', 'group' => 'Painel'],
         ['id' => 'library', 'label' => 'Catálogo de Livros', 'icon' => 'L', 'group' => 'Livros'],
         ['id' => 'stock', 'label' => 'Entrada e Saída', 'icon' => '⇄', 'group' => 'Livros'],
         ['id' => 'reports', 'label' => 'Relatórios', 'icon' => 'R', 'group' => 'Livros'],
         ['id' => 'purchases', 'label' => 'Compras', 'icon' => 'C', 'group' => 'Compras'],
         ['id' => 'classes', 'label' => 'Turmas', 'icon' => 'T', 'group' => 'Escola'],
-        ['id' => 'suppliers', 'label' => 'Fornecedores', 'icon' => 'F', 'group' => 'Escola'],
+        ['id' => 'courses', 'label' => 'Cadastrar Curso', 'icon' => '+', 'group' => 'Escola'],
+        ['id' => 'book_registration', 'label' => 'Cadastrar Livro', 'icon' => '+', 'group' => 'Escola'],
         ['id' => 'people', 'label' => 'Equipe', 'icon' => 'E', 'group' => 'Escola'],
     ],
 

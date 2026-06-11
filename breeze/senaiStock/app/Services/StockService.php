@@ -35,12 +35,12 @@ class StockService
             $funcionarioId = $this->validFuncionarioId($funcionarioId);
             $book = Book::create([
                 'title' => $data['title'],
-                'isbn' => $data['isbn'] ?: 'SEM-' . Str::upper(Str::random(8)),
+                'isbn' => ($data['isbn'] ?? null) ?: 'SEM-' . Str::upper(Str::random(8)),
                 'subject' => $data['subject'],
                 'description' => $data['description'] ?? null,
+                'image_path' => $data['image_path'] ?? null,
                 'quantity' => (int) $data['quantity'],
                 'minimum_stock' => (int) ($data['minimum_stock'] ?? config('senaistock.low_stock_threshold', 8)),
-                'location' => $data['location'] ?? null,
                 'status' => $data['status'] ?? 'ativo',
             ]);
 
@@ -49,7 +49,7 @@ class StockService
                 'book_id' => $book->id,
                 'funcionario_id' => $funcionarioId,
                 'quantity' => (int) $data['quantity'],
-                'justification' => $data['description'] ?: 'Cadastro inicial de novo material.',
+                'justification' => ($data['description'] ?? null) ?: 'Cadastro inicial de novo material.',
             ]);
 
             return $book;

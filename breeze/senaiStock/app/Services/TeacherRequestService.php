@@ -12,6 +12,7 @@ use App\Models\TeacherRequest;
 use App\Models\TeacherRequestMessage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class TeacherRequestService
@@ -172,12 +173,20 @@ class TeacherRequestService
         $sent = false;
 
         if ($sendEmail && filled($teacherRequest->teacher_email)) {
-            Mail::to($teacherRequest->teacher_email)->send(
-                new TeacherRequestStatusMail($teacherRequest->fresh(['book']), $message)
-            );
+            try {
+                Mail::to($teacherRequest->teacher_email)->send(
+                    new TeacherRequestStatusMail($teacherRequest->fresh(['book']), $message)
+                );
 
-            $teacherRequest->forceFill(['notified_at' => now()])->save();
-            $sent = true;
+                $teacherRequest->forceFill(['notified_at' => now()])->save();
+                $sent = true;
+            } catch (\Throwable $exception) {
+                Log::warning('Falha ao enviar atualização de pedido por e-mail.', [
+                    'teacher_request_id' => $teacherRequest->id,
+                    'status' => $status,
+                    'exception' => $exception->getMessage(),
+                ]);
+            }
         }
 
         $funcionarioId = $funcionarioId && Funcionario::whereKey($funcionarioId)->exists()

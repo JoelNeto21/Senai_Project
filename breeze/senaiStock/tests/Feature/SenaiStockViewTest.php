@@ -6,6 +6,8 @@ use App\Models\Cargo;
 use App\Models\Curso;
 use App\Models\Funcionario;
 use App\Models\Turma;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class SenaiStockViewTest extends TestCase
@@ -204,11 +206,11 @@ class SenaiStockViewTest extends TestCase
             'teacher_requests',
             'purchases',
             'library',
+            'book_registration',
             'stock',
             'reports',
-            'alerts',
-            'suppliers',
             'classes',
+            'courses',
             'people',
         ];
 
@@ -231,6 +233,8 @@ class SenaiStockViewTest extends TestCase
             'withdraw' => '/dashboard/stock?tab=saida',
             'movements' => '/dashboard/stock?tab=historico',
             'history' => '/dashboard/purchases?tab=historico',
+            'alerts' => '/dashboard/insights',
+            'suppliers' => '/dashboard/purchases',
         ];
 
         foreach ($redirects as $view => $expectedTarget) {
@@ -299,6 +303,142 @@ class SenaiStockViewTest extends TestCase
             'nome_turma' => 'ELE-1A',
             'curso_id' => $curso->id,
         ]);
+    }
+
+    public function test_navigation_uses_consolidated_tabs(): void
+    {
+        $response = $this->get(route('senai.dashboard', ['view' => 'insights']));
+        $items = collect($response->viewData('navigationItems'));
+
+        $this->assertSame('Pedidos', $items->firstWhere('id', 'teacher_requests')['label']);
+        $this->assertTrue($items->contains('id', 'book_registration'));
+        $this->assertTrue($items->contains('id', 'courses'));
+        $this->assertFalse($items->contains('id', 'alerts'));
+        $this->assertFalse($items->contains('id', 'suppliers'));
+        $this->assertSame('Escola', $items->firstWhere('id', 'book_registration')['group']);
+    }
+
+    public function test_catalog_link_prefills_request_book(): void
+    {
+        $book = \App\Models\Book::factory()->create(['title' => 'Livro selecionado no catalogo']);
+
+        $response = $this->get(route('senai.dashboard', ['view' => 'teacher_requests', 'book_id' => $book->id]));
+
+        $response
+            ->assertOk()
+            ->assertViewHas('initialRequestBookId', $book->id)
+            ->assertSee('filteredTurmas', false)
+            ->assertSee('>Livro</label>', false)
+            ->assertSee($book->title)
+            ->assertSee('name="book_id" value="'.$book->id.'"', false)
+            ->assertSee('Coordenador Senai')
+            ->assertDontSee('name="teacher_email"', false)
+            ->assertDontSee('Selecionado pelo catálogo');
+
+        $this->assertMatchesRegularExpression(
+            '/<details class="[^"]*mb-8"\s+open\s*>/',
+            $response->getContent(),
+        );
+    }
+
+    public function test_normal_request_form_is_closed_and_keeps_manual_fields(): void
+    {
+        $response = $this->get(route('senai.dashboard', ['view' => 'teacher_requests']));
+
+        $response->assertOk()
+            ->assertSee('Solicitante')
+            ->assertSee('Coordenador Senai')
+            ->assertDontSee('name="teacher_name"', false)
+            ->assertDontSee('name="teacher_email"', false)
+            ->assertSee('name="curso_id"', false)
+            ->assertSee('Limpar campos');
+
+        $this->assertDoesNotMatchRegularExpression(
+            '/<details class="[^"]*mb-8"\s+open\s*>/',
+            $response->getContent(),
+        );
+    }
+
+    public function test_coordenador_can_create_employee_without_cpf(): void
+    {
+        $cargo = Cargo::firstOrCreate(['Nome_cargo' => 'Professor']);
+
+        $this->post(route('funcionarios.store'), [
+            'NIF' => 778899,
+            'Nome' => 'Professor sem CPF',
+            'Id_cargo_FK' => $cargo->Id_cargo,
+        ])->assertRedirect(route('senai.dashboard', ['view' => 'people']));
+
+        $this->assertDatabaseHas('funcionarios', [
+            'NIF' => 778899,
+            'Nome' => 'Professor sem CPF',
+            'Cpf' => null,
+        ]);
+    }
+
+    public function test_simplified_purchase_and_report_interfaces_render(): void
+    {
+        $this->get(route('senai.dashboard', ['view' => 'purchases']))
+            ->assertOk()
+            ->assertDontSee('Título Inédito')
+            ->assertDontSee('Fornecedor / Editora');
+
+        $this->get(route('senai.dashboard', ['view' => 'reports']))
+            ->assertOk()
+            ->assertSee('Buscar pelo nome do livro')
+            ->assertSee('Todas as áreas')
+            ->assertSee('x-model="subject"', false)
+            ->assertSee("sort('title')", false);
+    }
+
+    public function test_coordenador_can_create_course(): void
+    {
+        $this->post(route('stock.courses.store'), [
+            'nome_curso' => 'Administração',
+        ])->assertRedirect(route('senai.dashboard', ['view' => 'courses']));
+
+        $this->assertDatabaseHas('cursos', ['nome_curso' => 'Administração']);
+
+        $this->get(route('senai.dashboard', ['view' => 'courses']))
+            ->assertOk()
+            ->assertSee('Cadastrar Curso')
+            ->assertSee('Administração');
+    }
+
+    public function test_book_registration_uses_single_searchable_course_field(): void
+    {
+        Curso::factory()->create(['nome_curso' => 'Mecatrônica']);
+
+        $this->get(route('senai.dashboard', ['view' => 'book_registration']))
+            ->assertOk()
+            ->assertDontSee('Buscar curso / área')
+            ->assertSee('list="course-options"', false)
+            ->assertDontSee('name="location"', false)
+            ->assertSee('name="image"', false)
+            ->assertSee('Mecatrônica');
+    }
+
+    public function test_book_cover_upload_is_saved_and_shown_in_catalog(): void
+    {
+        Storage::fake('public');
+        Curso::factory()->create(['nome_curso' => 'Desenvolvimento']);
+
+        $this->post(route('stock.books.store-new'), [
+            'title' => 'Livro com capa',
+            'subject' => 'Desenvolvimento',
+            'quantity' => 10,
+            'image' => UploadedFile::fake()->createWithContent(
+                'capa.png',
+                base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=')
+            ),
+        ])->assertRedirect(route('senai.dashboard', ['view' => 'book_registration']));
+
+        $book = \App\Models\Book::where('title', 'Livro com capa')->firstOrFail();
+        Storage::disk('public')->assertExists($book->image_path);
+
+        $this->get(route('senai.dashboard', ['view' => 'library']))
+            ->assertOk()
+            ->assertSee(Storage::url($book->image_path), false);
     }
 
     public function test_professor_cannot_create_turma(): void

@@ -4,9 +4,12 @@
     :employee="[]"
 >
     <div class="animate-in fade-in duration-500 max-w-2xl mx-auto">
-        <div class="mb-8">
-            <h1 class="text-3xl font-semibold tracking-tight text-gray-900">Editar Funcionário</h1>
-            <p class="text-gray-500 mt-1 text-base">Atualize as informações do colaborador.</p>
+        <div class="mb-8 flex items-start justify-between gap-4">
+            <div>
+                <h1 class="text-3xl font-semibold tracking-tight text-gray-900">Editar funcionário</h1>
+                <p class="text-gray-500 mt-1 text-base">Atualize o nome, NIF ou tipo de acesso.</p>
+            </div>
+            <button type="button" onclick="history.back()" class="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50">Voltar</button>
         </div>
 
         <div class="bg-white rounded-3xl border border-gray-200 shadow-sm p-6 sm:p-8">
@@ -48,27 +51,11 @@
                 </div>
 
                 <div>
-                    <x-input-label for="Cpf" value="CPF" />
-                    <x-text-input
-                        id="Cpf"
-                        class="mt-2 w-full"
-                        type="text"
-                        name="Cpf"
-                        value="{{ old('Cpf', $funcionario->Cpf) }}"
-                        required
-                        placeholder="Ex: 123.456.789-10"
-                    />
-                    @error('Cpf')
-                        <x-input-error :messages="$errors->get('Cpf')" class="mt-2" />
-                    @enderror
-                </div>
-
-                <div>
                     <x-input-label for="Id_cargo_FK" value="Cargo" />
                     <select
                         id="Id_cargo_FK"
                         name="Id_cargo_FK"
-                        class="mt-2 w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
+                        class="mt-2 w-full rounded-xl border border-gray-100 bg-gray-50 px-4 py-3.5 text-sm text-gray-900 focus:ring-2 focus:ring-red-500 outline-none"
                         required
                     >
                         <option value="">Selecione um cargo...</option>
@@ -84,10 +71,10 @@
                 </div>
 
                 <div class="flex gap-3 pt-6">
-                    <button type="submit" class="inline-flex items-center px-4 py-2 bg-gray-800 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700 focus:bg-gray-700 active:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150">
+                    <button type="submit" class="rounded-xl bg-gray-900 px-5 py-3 text-sm font-semibold text-white hover:bg-gray-800">
                         Atualizar
                     </button>
-                    <a href="{{ route('funcionarios.index') }}" class="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md font-semibold text-xs text-gray-700 uppercase tracking-widest shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-25 transition ease-in-out duration-150">
+                    <a href="{{ route('senai.dashboard', ['view' => 'people']) }}" class="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50">
                         Cancelar
                     </a>
                 </div>

@@ -15,6 +15,7 @@ class Book extends Model
         'isbn',
         'subject',
         'description',
+        'image_path',
         'quantity',
         'minimum_stock',
         'location',

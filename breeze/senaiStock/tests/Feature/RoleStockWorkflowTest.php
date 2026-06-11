@@ -17,7 +17,7 @@ class RoleStockWorkflowTest extends TestCase
     public function test_role_view_boundaries_match_the_operational_responsibilities(): void
     {
         $this->assertSame(
-            ['insights', 'alerts', 'teacher_requests', 'library', 'stock', 'reports', 'purchases', 'classes', 'suppliers', 'people'],
+            ['insights', 'teacher_requests', 'library', 'book_registration', 'stock', 'reports', 'purchases', 'classes', 'courses', 'people'],
             EmployeeRole::allowedViews(EmployeeRole::COORDENADOR)
         );
         $this->assertSame(['teacher_requests'], EmployeeRole::allowedViews(EmployeeRole::PROFESSOR));
@@ -72,7 +72,7 @@ class RoleStockWorkflowTest extends TestCase
             ->assertRedirect();
 
         $this->assertSame(5, $book->fresh()->quantity);
-        $this->assertSame('pendente', $teacherRequest->fresh()->status);
+        $this->assertSame('aprovado', $teacherRequest->fresh()->status);
         $this->assertDatabaseHas('movements', [
             'type' => 'entrada',
             'book_id' => $book->id,
@@ -143,6 +143,10 @@ class RoleStockWorkflowTest extends TestCase
         ]);
 
         $this->withEmployee($coordenador)
+            ->post(route('stock.teacher-requests.approve', $teacherRequest))
+            ->assertRedirect();
+
+        $this->withEmployee($coordenador)
             ->post(route('stock.teacher-requests.fulfill', $teacherRequest), ['quantity' => 1])
             ->assertRedirect();
 
@@ -167,19 +171,41 @@ class RoleStockWorkflowTest extends TestCase
 
         $teacherRequest = TeacherRequest::firstOrFail();
         $this->assertSame('compra', $teacherRequest->status);
+        $this->assertSame($coordenador->Nome, $teacherRequest->teacher_name);
+        $this->assertNull($teacherRequest->teacher_email);
 
         $this->withEmployee($coordenador)
             ->get(route('senai.dashboard', ['view' => 'stock', 'tab' => 'saida']))
             ->assertOk()
-            ->assertSee(route('stock.teacher-requests.fulfill', $teacherRequest), false)
-            ->assertSee('2 un disponivel(is) para retirada agora');
+            ->assertDontSee(route('stock.teacher-requests.fulfill', $teacherRequest), false);
 
         $this->withEmployee($coordenador)
             ->post(route('stock.teacher-requests.fulfill', $teacherRequest), ['quantity' => 2])
-            ->assertRedirect();
+            ->assertSessionHasErrors('teacher_request');
 
-        $this->assertSame('separado_parcial', $teacherRequest->fresh()->status);
-        $this->assertSame(0, $book->fresh()->quantity);
+        $this->assertSame('compra', $teacherRequest->fresh()->status);
+        $this->assertSame(2, $book->fresh()->quantity);
+    }
+
+    public function test_coordenador_request_with_enough_stock_is_approved_automatically(): void
+    {
+        $coordenador = $this->employee('Coordenador', 700035, 'Coordenador Senai');
+        $book = Book::factory()->create(['quantity' => 10, 'subject' => 'Desenvolvimento de Sistemas']);
+        [$curso, $turma] = $this->courseAndClass();
+
+        $this->withEmployee($coordenador)
+            ->post(route('stock.teacher-requests.store'), [
+                'teacher_name' => $coordenador->Nome,
+                'turma_id' => $turma->id,
+                'curso_id' => $curso->id,
+                'book_id' => $book->id,
+                'quantity' => 3,
+            ])
+            ->assertRedirect(route('senai.dashboard', ['view' => 'teacher_requests']));
+
+        $teacherRequest = TeacherRequest::firstOrFail();
+        $this->assertSame('aprovado', $teacherRequest->status);
+        $this->assertSame($coordenador->Id_funcionario, $teacherRequest->requested_by_funcionario_id);
     }
 
     public function test_approved_request_remains_visible_with_approved_status(): void
@@ -207,6 +233,39 @@ class RoleStockWorkflowTest extends TestCase
             ->assertOk()
             ->assertSee('Aprovado')
             ->assertSee($teacherRequest->protocol);
+    }
+
+    public function test_approved_purchase_becomes_ready_to_separate_when_stock_is_already_enough(): void
+    {
+        $coordenador = $this->employee('Coordenador', 700045, 'Coordenador Senai');
+        $book = Book::factory()->create(['quantity' => 5]);
+        $teacherRequest = TeacherRequest::create([
+            'protocol' => 'SS-BUY-READY-001',
+            'teacher_name' => 'Prof. Ana',
+            'class_name' => 'DS-1A',
+            'book_id' => $book->id,
+            'title' => $book->title,
+            'quantity' => 3,
+            'status' => 'compra',
+        ]);
+        $order = PurchaseOrder::create([
+            'order_number' => 'PED-BUY-READY-001',
+            'status' => 'pendente_aprovacao',
+            'generated_at' => now(),
+        ]);
+        $order->items()->create([
+            'teacher_request_id' => $teacherRequest->id,
+            'book_id' => $book->id,
+            'title' => $book->title,
+            'quantity' => 1,
+            'type' => 'restock',
+        ]);
+
+        $this->withEmployee($coordenador)
+            ->post(route('stock.purchases.approve', $order))
+            ->assertRedirect();
+
+        $this->assertSame('aprovado', $teacherRequest->fresh()->status);
     }
 
     public function test_coordenador_can_approve_or_reject_buy_request_inline_and_professor_sees_update(): void

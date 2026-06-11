@@ -11,6 +11,7 @@ use App\Models\TeacherRequest;
 use App\Models\TeacherRequestMessage;
 use App\Models\Turma;
 use Illuminate\Support\Facades\Mail;
+use RuntimeException;
 use Tests\TestCase;
 
 class TeacherRequestFlowTest extends TestCase
@@ -113,5 +114,66 @@ class TeacherRequestFlowTest extends TestCase
 
         $response->assertSessionHasErrors();
         $this->assertSame(2, $book->fresh()->quantity);
+    }
+
+    public function test_request_cannot_be_separated_before_approval(): void
+    {
+        $book = Book::factory()->create(['quantity' => 10]);
+        $teacherRequest = TeacherRequest::create([
+            'protocol' => 'SS-APPROVAL-FIRST',
+            'teacher_name' => 'Prof. Carlos',
+            'class_name' => 'ELE-3C',
+            'book_id' => $book->id,
+            'title' => $book->title,
+            'quantity' => 2,
+            'status' => 'pendente',
+        ]);
+
+        $this->withEmployeeSession('Coordenador')
+            ->post(route('stock.teacher-requests.fulfill', $teacherRequest), ['quantity' => 2])
+            ->assertSessionHasErrors('teacher_request');
+
+        $this->assertSame(10, $book->fresh()->quantity);
+    }
+
+    public function test_rejection_is_saved_and_visible_even_when_email_delivery_fails(): void
+    {
+        $cargo = Cargo::firstOrCreate(['Nome_cargo' => 'Professor']);
+        $professor = Funcionario::factory()->create(['Id_cargo_FK' => $cargo->Id_cargo]);
+        $book = Book::factory()->create(['quantity' => 10]);
+        $teacherRequest = TeacherRequest::create([
+            'protocol' => 'SS-REJECT-EMAIL-FAIL',
+            'requested_by_funcionario_id' => $professor->Id_funcionario,
+            'teacher_name' => $professor->Nome,
+            'teacher_email' => 'professor@senai.br',
+            'class_name' => 'DS-1A',
+            'book_id' => $book->id,
+            'title' => $book->title,
+            'quantity' => 2,
+            'status' => 'pendente',
+        ]);
+
+        Mail::shouldReceive('to')->once()->andThrow(new RuntimeException('SMTP indisponível'));
+
+        $this->withEmployeeSession('Coordenador')
+            ->post(route('stock.teacher-requests.reject', $teacherRequest), ['message' => 'Pedido recusado por conflito de agenda.'])
+            ->assertRedirect(route('senai.dashboard', ['view' => 'teacher_requests']));
+
+        $this->assertSame('rejeitado', $teacherRequest->fresh()->status);
+        $this->assertDatabaseHas('teacher_request_messages', [
+            'teacher_request_id' => $teacherRequest->id,
+            'status' => 'rejeitado',
+            'message' => 'Pedido recusado por conflito de agenda.',
+            'email_sent' => false,
+        ]);
+
+        $this->withSession(['employee' => [
+            'id' => $professor->Id_funcionario,
+            'name' => $professor->Nome,
+            'cargo' => 'Professor',
+        ]])
+            ->get(route('senai.dashboard', ['view' => 'teacher_requests']))
+            ->assertOk()
+            ->assertSee('Pedido recusado por conflito de agenda.');
     }
 }

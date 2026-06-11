@@ -9,10 +9,10 @@
                 <h1 class="text-3xl font-semibold tracking-tight text-gray-900">Funcionários</h1>
                 <p class="text-gray-500 mt-1 text-base">Gerenciamento de colaboradores cadastrados no sistema.</p>
             </div>
-            <a href="{{ route('funcionarios.create') }}" class="inline-flex items-center px-5 py-2.5 bg-gray-900 hover:bg-gray-800 text-white rounded-xl text-sm font-medium transition-colors">
-                <span class="mr-2">+</span>
-                Novo Funcionário
-            </a>
+            <div class="flex gap-3">
+                <button type="button" onclick="history.back()" class="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50">Voltar</button>
+                <a href="{{ route('funcionarios.create') }}" class="inline-flex items-center px-5 py-2.5 bg-gray-900 hover:bg-gray-800 text-white rounded-xl text-sm font-medium transition-colors">Novo Funcionário</a>
+            </div>
         </div>
 
         @if (session('success'))
@@ -28,7 +28,6 @@
                     <thead class="bg-gray-50/80 text-gray-500">
                         <tr>
                             <th class="px-6 py-4 font-medium">Nome</th>
-                            <th class="px-6 py-4 font-medium">CPF</th>
                             <th class="px-6 py-4 font-medium">Cargo</th>
                             <th class="px-6 py-4 font-medium text-right">Ações</th>
                         </tr>
@@ -38,9 +37,6 @@
                             <tr class="border-t border-gray-50 hover:bg-gray-50/60 transition-colors {{ $loop->odd ? 'bg-white' : 'bg-gray-50/30' }}">
                                 <td class="px-6 py-4">
                                     <p class="font-medium text-gray-900">{{ $funcionario->Nome }}</p>
-                                </td>
-                                <td class="px-6 py-4 text-gray-600">
-                                    <span class="font-mono text-xs">{{ $funcionario->Cpf }}</span>
                                 </td>
                                 <td class="px-6 py-4">
                                     <span class="inline-flex items-center px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-medium">

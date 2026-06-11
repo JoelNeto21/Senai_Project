@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Cargo;
 use App\Models\Funcionario; // Importante para carregar os cargos no formulário
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class FuncionarioController extends Controller
 {
@@ -25,7 +26,7 @@ class FuncionarioController extends Controller
     // 2. Mostrar o formulário para criar um novo funcionário
     public function create()
     {
-        $cargos = Cargo::all(); // Precisamos disso para o <select> no formulário
+        $cargos = Cargo::whereIn('Nome_cargo', ['Coordenador', 'Professor'])->orderBy('Nome_cargo')->get();
         // Temporarily use temp file until directories are properly created
         $viewPath = 'temp_funcionarios_create';
         if (view()->exists('funcionarios.create')) {
@@ -42,24 +43,29 @@ class FuncionarioController extends Controller
         $request->validate([
             'NIF' => 'required|integer|unique:funcionarios,NIF',
             'Nome' => 'required|string|max:255',
-            'Cpf' => 'required|string|unique:funcionarios,Cpf',
-            'Id_cargo_FK' => 'required|exists:cargos,Id_cargo', // Verifica se o cargo existe
+            'Id_cargo_FK' => [
+                'required',
+                Rule::exists('cargos', 'Id_cargo')->where(
+                    fn ($query) => $query->whereIn('Nome_cargo', ['Coordenador', 'Professor'])
+                ),
+            ],
         ]);
 
         // Cria o registro usando o $guarded = [] que você definiu no Model
         Funcionario::create([
-            ...$request->only(['NIF', 'Nome', 'Cpf', 'Id_cargo_FK']),
+            ...$request->only(['NIF', 'Nome', 'Id_cargo_FK']),
+            'Cpf' => null,
             'password' => 'senai123',
         ]);
 
-        return redirect()->route('funcionarios.index')
+        return redirect()->route('senai.dashboard', ['view' => 'people'])
             ->with('success', 'Funcionário cadastrado com sucesso!');
     }
 
     // 4. Mostrar o formulário de edição
     public function edit(Funcionario $funcionario)
     {
-        $cargos = Cargo::all();
+        $cargos = Cargo::whereIn('Nome_cargo', ['Coordenador', 'Professor'])->orderBy('Nome_cargo')->get();
         // Temporarily use temp file until directories are properly created
         $viewPath = 'temp_funcionarios_edit';
         if (view()->exists('funcionarios.edit')) {
@@ -75,13 +81,17 @@ class FuncionarioController extends Controller
         $request->validate([
             'NIF' => 'required|integer|unique:funcionarios,NIF,'.$funcionario->Id_funcionario.',Id_funcionario',
             'Nome' => 'required|string|max:255',
-            'Cpf' => 'required|string|unique:funcionarios,Cpf,'.$funcionario->Id_funcionario.',Id_funcionario',
-            'Id_cargo_FK' => 'required|exists:cargos,Id_cargo',
+            'Id_cargo_FK' => [
+                'required',
+                Rule::exists('cargos', 'Id_cargo')->where(
+                    fn ($query) => $query->whereIn('Nome_cargo', ['Coordenador', 'Professor'])
+                ),
+            ],
         ]);
 
-        $funcionario->update($request->only(['NIF', 'Nome', 'Cpf', 'Id_cargo_FK']));
+        $funcionario->update($request->only(['NIF', 'Nome', 'Id_cargo_FK']));
 
-        return redirect()->route('funcionarios.index')
+        return redirect()->route('senai.dashboard', ['view' => 'people'])
             ->with('success', 'Dados atualizados!');
     }
 

@@ -92,6 +92,17 @@ Alpine.data('teacherRequestForm', (turmas = [], books = [], initialBookId = '') 
 	cursoId: '',
 	bookId: initialBookId ? String(initialBookId) : '',
 
+	init() {
+		const selected = this.selectedBook;
+		if (selected) {
+			const matchingTurmas = this.filteredTurmas;
+			if (matchingTurmas.length === 1) {
+				this.turmaId = String(matchingTurmas[0].id);
+				this.selectTurma();
+			}
+		}
+	},
+
 	normalize(value) {
 		return String(value ?? '')
 			.normalize('NFD')
@@ -104,9 +115,22 @@ Alpine.data('teacherRequestForm', (turmas = [], books = [], initialBookId = '') 
 		return this.turmas.find((turma) => String(turma.id) === String(this.turmaId));
 	},
 
+	get selectedBook() {
+		return this.books.find((book) => String(book.id) === String(this.bookId));
+	},
+
+	get filteredTurmas() {
+		if (!initialBookId || !this.selectedBook) {
+			return this.turmas;
+		}
+
+		const subject = this.normalize(this.selectedBook.subject);
+		return this.turmas.filter((turma) => this.normalize(turma.curso_nome) === subject);
+	},
+
 	get filteredBooks() {
 		if (!this.selectedTurma) {
-			return [];
+			return this.selectedBook ? [this.selectedBook] : [];
 		}
 
 		const course = this.normalize(this.selectedTurma.curso_nome);
@@ -127,13 +151,75 @@ Alpine.data('teacherRequestForm', (turmas = [], books = [], initialBookId = '') 
 			this.bookId = id;
 		}
 	},
+
+	resetForm() {
+		this.turmaId = '';
+		this.cursoId = '';
+		this.bookId = initialBookId ? String(initialBookId) : '';
+	},
+}));
+
+Alpine.data('bookRegistrationForm', () => ({
+	isbn: '',
+
+	maskIsbn() {
+		this.isbn = String(this.isbn ?? '').replace(/[^0-9-]/g, '').slice(0, 20);
+	},
+}));
+
+Alpine.data('reportBooksTable', (books = [], threshold = 8) => ({
+	books,
+	threshold,
+	query: '',
+	subject: '',
+	sortField: 'title',
+	sortDirection: 'asc',
+
+	normalize(value) {
+		return String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+	},
+
+	sort(field) {
+		if (this.sortField === field) {
+			this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+			return;
+		}
+		this.sortField = field;
+		this.sortDirection = 'asc';
+	},
+
+	indicator(field) {
+		return this.sortField === field ? (this.sortDirection === 'asc' ? '↑' : '↓') : '↕';
+	},
+
+	status(book) {
+		return Number(book.quantity) < this.threshold ? 'Crítico' : 'OK';
+	},
+
+	get subjects() {
+		return [...new Set(this.books.map((book) => book.subject).filter(Boolean))]
+			.sort((a, b) => String(a).localeCompare(String(b), 'pt-BR'));
+	},
+
+	get rows() {
+		const term = this.normalize(this.query);
+		return [...this.books]
+			.filter((book) => (!term || this.normalize(book.title).includes(term))
+				&& (!this.subject || book.subject === this.subject))
+			.sort((a, b) => {
+				const left = this.sortField === 'status' ? this.status(a) : a[this.sortField];
+				const right = this.sortField === 'status' ? this.status(b) : b[this.sortField];
+				const result = typeof left === 'number'
+					? Number(left) - Number(right)
+					: String(left ?? '').localeCompare(String(right ?? ''), 'pt-BR', { numeric: true });
+				return this.sortDirection === 'asc' ? result : -result;
+			});
+	},
 }));
 
 Alpine.data('purchaseCartForm', (catalog = [], initialItems = []) => ({
 	catalog,
-	reqType: 'restock',
 	bookId: '',
-	newTitle: '',
 	quantity: 1,
 	justification: '',
 	items: initialItems,
@@ -144,7 +230,7 @@ Alpine.data('purchaseCartForm', (catalog = [], initialItems = []) => ({
 	},
 
 	addItem() {
-		const title = this.reqType === 'restock' ? this.selectedBook?.title : this.newTitle.trim();
+		const title = this.selectedBook?.title;
 
 		if (!title || Number(this.quantity) <= 0) {
 			return;
@@ -152,18 +238,16 @@ Alpine.data('purchaseCartForm', (catalog = [], initialItems = []) => ({
 
 		this.items.push({
 			id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-			type: this.reqType,
-			bookId: this.reqType === 'restock' ? this.selectedBook?.id ?? null : null,
+			type: 'restock',
+			bookId: this.selectedBook?.id ?? null,
 			title,
 			quantity: Number(this.quantity),
 			justification: this.justification.trim() || 'Reposição de estoque.',
 		});
 
 		this.bookId = '';
-		this.newTitle = '';
 		this.quantity = 1;
 		this.justification = '';
-		this.reqType = 'restock';
 	},
 
 	removeItem(index) {

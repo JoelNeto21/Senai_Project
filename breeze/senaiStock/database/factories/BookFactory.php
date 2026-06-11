@@ -33,6 +33,7 @@ class BookFactory extends Factory
                 'Education',
             ]),
             'description' => $this->faker->sentence(12),
+            'image_path' => null,
             'quantity' => $this->faker->numberBetween(0, 50),
             'minimum_stock' => 10,
             'location' => 'Prateleira ' . $this->faker->bothify('??-##'),

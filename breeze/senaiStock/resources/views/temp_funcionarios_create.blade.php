@@ -3,92 +3,51 @@
     :navigation-items="[]"
     :employee="[]"
 >
-    <div class="animate-in fade-in duration-500 max-w-2xl mx-auto">
-        <div class="mb-8">
-            <h1 class="text-3xl font-semibold tracking-tight text-gray-900">Novo Funcionário</h1>
-            <p class="text-gray-500 mt-1 text-base">Adicione um novo colaborador ao sistema.</p>
+    <div class="animate-in fade-in duration-500 max-w-3xl mx-auto">
+        <div class="mb-8 flex items-start justify-between gap-4">
+            <div>
+                <h1 class="text-3xl font-semibold tracking-tight text-gray-900">Novo funcionário</h1>
+                <p class="text-gray-500 mt-1 text-base">Cadastre o acesso de um Coordenador ou Professor.</p>
+            </div>
+            <button type="button" onclick="history.back()" class="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50">Voltar</button>
         </div>
 
-        <div class="bg-white rounded-3xl border border-gray-200 shadow-sm p-6 sm:p-8">
-            <form method="POST" action="{{ route('funcionarios.store') }}" class="space-y-6">
+        <div class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 sm:p-8">
+            <form method="POST" action="{{ route('funcionarios.store') }}" class="grid grid-cols-1 gap-6 md:grid-cols-2">
                 @csrf
 
-                <div>
-                    <x-input-label for="Nome" value="Nome Completo" />
-                    <x-text-input
-                        id="Nome"
-                        class="mt-2 w-full"
-                        type="text"
-                        name="Nome"
-                        value="{{ old('Nome') }}"
-                        required
-                        autofocus
-                        placeholder="Ex: João Silva"
-                    />
-                    @error('Nome')
-                        <x-input-error :messages="$errors->get('Nome')" class="mt-2" />
-                    @enderror
+                <div class="md:col-span-2">
+                    <label for="Nome" class="block text-sm font-medium text-gray-900 mb-2">Nome completo</label>
+                    <input id="Nome" name="Nome" value="{{ old('Nome') }}" required autofocus class="w-full rounded-xl border border-gray-100 bg-gray-50 px-4 py-3.5 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-red-500 outline-none" placeholder="Ex: João Silva">
+                    @error('Nome') <p class="mt-2 text-sm text-red-600">{{ $message }}</p> @enderror
                 </div>
 
                 <div>
-                    <x-input-label for="NIF" value="NIF" />
-                    <x-text-input
-                        id="NIF"
-                        class="mt-2 w-full"
-                        type="number"
-                        name="NIF"
-                        value="{{ old('NIF') }}"
-                        required
-                        placeholder="Ex: 123456"
-                    />
-                    @error('NIF')
-                        <x-input-error :messages="$errors->get('NIF')" class="mt-2" />
-                    @enderror
+                    <label for="NIF" class="block text-sm font-medium text-gray-900 mb-2">NIF</label>
+                    <input id="NIF" type="number" name="NIF" value="{{ old('NIF') }}" required class="w-full rounded-xl border border-gray-100 bg-gray-50 px-4 py-3.5 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-red-500 outline-none" placeholder="Ex: 123456">
+                    @error('NIF') <p class="mt-2 text-sm text-red-600">{{ $message }}</p> @enderror
                 </div>
 
                 <div>
-                    <x-input-label for="Cpf" value="CPF" />
-                    <x-text-input
-                        id="Cpf"
-                        class="mt-2 w-full"
-                        type="text"
-                        name="Cpf"
-                        value="{{ old('Cpf') }}"
-                        required
-                        placeholder="Ex: 123.456.789-10"
-                    />
-                    @error('Cpf')
-                        <x-input-error :messages="$errors->get('Cpf')" class="mt-2" />
-                    @enderror
-                </div>
-
-                <div>
-                    <x-input-label for="Id_cargo_FK" value="Cargo" />
-                    <select
-                        id="Id_cargo_FK"
-                        name="Id_cargo_FK"
-                        class="mt-2 w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
-                        required
-                    >
-                        <option value="">Selecione um cargo...</option>
+                    <label for="Id_cargo_FK" class="block text-sm font-medium text-gray-900 mb-2">Tipo de acesso</label>
+                    <select id="Id_cargo_FK" name="Id_cargo_FK" required class="w-full rounded-xl border border-gray-100 bg-gray-50 px-4 py-3.5 text-sm text-gray-900 focus:ring-2 focus:ring-red-500 outline-none">
+                        <option value="">Selecione...</option>
                         @foreach ($cargos as $cargo)
                             <option value="{{ $cargo->Id_cargo }}" {{ old('Id_cargo_FK') == $cargo->Id_cargo ? 'selected' : '' }}>
                                 {{ $cargo->Nome_cargo }}
                             </option>
                         @endforeach
                     </select>
-                    @error('Id_cargo_FK')
-                        <x-input-error :messages="$errors->get('Id_cargo_FK')" class="mt-2" />
-                    @enderror
+                    @error('Id_cargo_FK') <p class="mt-2 text-sm text-red-600">{{ $message }}</p> @enderror
                 </div>
 
-                <div class="flex gap-3 pt-6">
-                    <button type="submit" class="inline-flex items-center px-4 py-2 bg-gray-800 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700 focus:bg-gray-700 active:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150">
-                        Salvar Funcionário
-                    </button>
-                    <a href="{{ route('funcionarios.index') }}" class="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md font-semibold text-xs text-gray-700 uppercase tracking-widest shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-25 transition ease-in-out duration-150">
-                        Cancelar
-                    </a>
+                <div class="md:col-span-2 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-800">
+                    A senha inicial será <strong>senai123</strong>.
+                </div>
+
+                <div class="md:col-span-2 flex gap-3 pt-2">
+                    <button type="submit" class="rounded-xl bg-gray-900 px-5 py-3 text-sm font-semibold text-white hover:bg-gray-800">Cadastrar funcionário</button>
+                    <a href="{{ route('senai.dashboard', ['view' => 'people']) }}" class="rounded-xl border border-gray-200 px-5 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50">Cancelar</a>
                 </div>
             </form>
         </div>
