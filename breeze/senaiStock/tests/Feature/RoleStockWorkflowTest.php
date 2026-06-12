@@ -371,6 +371,63 @@ class RoleStockWorkflowTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_purchase_approvals_and_history_show_detailed_order_information(): void
+    {
+        $coordenador = $this->employee('Coordenador', 700061, 'Coordenador Compras');
+        $professor = $this->employee('Professor', 700062, 'Prof. Detalhes');
+        $book = Book::factory()->create([
+            'title' => 'Livro Detalhado de Compras',
+            'isbn' => '978-85-00000-61-0',
+            'subject' => 'Desenvolvimento de Sistemas',
+        ]);
+        $teacherRequest = TeacherRequest::create([
+            'protocol' => 'SS-DETAIL-001',
+            'requested_by_funcionario_id' => $professor->Id_funcionario,
+            'teacher_name' => $professor->Nome,
+            'class_name' => 'DS-DETAIL',
+            'course_name' => 'Desenvolvimento de Sistemas',
+            'book_id' => $book->id,
+            'title' => $book->title,
+            'quantity' => 8,
+            'status' => 'compra',
+            'due_date' => now()->addWeek(),
+        ]);
+        $order = PurchaseOrder::create([
+            'order_number' => 'PED-DETAIL-001',
+            'requested_by_funcionario_id' => $coordenador->Id_funcionario,
+            'status' => 'pendente_aprovacao',
+            'generated_at' => now(),
+            'notes' => 'Observacao detalhada da compra.',
+        ]);
+        $order->items()->create([
+            'teacher_request_id' => $teacherRequest->id,
+            'book_id' => $book->id,
+            'title' => $book->title,
+            'quantity' => 6,
+            'received_quantity' => 2,
+            'type' => 'restock',
+            'justification' => 'Quantidade faltante para a turma.',
+        ]);
+
+        $this->withEmployee($coordenador)
+            ->get(route('senai.dashboard', ['view' => 'purchases', 'tab' => 'aprovacoes']))
+            ->assertOk()
+            ->assertSee('Livro Detalhado de Compras')
+            ->assertSee('6 un.')
+            ->assertSee('SS-DETAIL-001')
+            ->assertSee('Prof. Detalhes')
+            ->assertSee('Observacao detalhada da compra.');
+
+        $this->withEmployee($coordenador)
+            ->get(route('senai.dashboard', ['view' => 'purchases', 'tab' => 'historico']))
+            ->assertOk()
+            ->assertSee('Clique para ver os detalhes')
+            ->assertSee('Quantidade solicitada')
+            ->assertSee('Quantidade recebida')
+            ->assertSee('Quantidade pendente')
+            ->assertSee('978-85-00000-61-0');
+    }
+
     private function employee(string $role, int $nif, string $name): Funcionario
     {
         $cargo = Cargo::firstOrCreate(['Nome_cargo' => $role]);

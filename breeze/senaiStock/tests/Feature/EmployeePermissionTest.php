@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Book;
 use App\Models\Cargo;
 use App\Models\Funcionario;
 use Tests\TestCase;
@@ -47,6 +48,23 @@ class EmployeePermissionTest extends TestCase
 
         $this->withEmployeeSession('Professor')
             ->get(route('senai.dashboard', ['view' => 'people']))
+            ->assertForbidden();
+    }
+
+    public function test_professor_cannot_call_coordinator_stock_actions_directly(): void
+    {
+        $book = Book::factory()->create();
+
+        $this->withEmployeeSession('Professor')
+            ->post(route('stock.alerts.purchase', $book))
+            ->assertForbidden();
+
+        $this->withEmployeeSession('Professor')
+            ->postJson('/api/books', [
+                'title' => 'Livro sem permissão',
+                'isbn' => '9780000000001',
+                'subject' => 'Área',
+            ])
             ->assertForbidden();
     }
 }

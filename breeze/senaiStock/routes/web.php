@@ -4,7 +4,6 @@ use App\Http\Controllers\CargoController;
 use App\Http\Controllers\EmployeeAuthController;
 use App\Http\Controllers\EmployeeRegistrationController;
 use App\Http\Controllers\FuncionarioController;
-use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SenaiStockController;
 use App\Support\EmployeeRole;
 use Illuminate\Http\Request;
@@ -94,7 +93,7 @@ Route::middleware('employee.auth')->group(function () {
         ->name('stock.courses.destroy');
 
     Route::middleware('employee.role:Coordenador')->group(function () {
-        Route::resource('funcionarios', FuncionarioController::class);
+        Route::resource('funcionarios', FuncionarioController::class)->except(['show']);
         Route::resource('cargos', CargoController::class)->only(['index']);
     });
 
@@ -103,42 +102,5 @@ Route::middleware('employee.auth')->group(function () {
         Route::post('books/{book}/withdraw', [SenaiStockController::class, 'withdrawViaApi']);
     });
 });
-
-Route::middleware('auth')->group(function () {
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-});
-
-Route::get('/teste', function () {
-    return view('senai-stock.index', [
-        'activeView' => 'insights',
-        'navigationItems' => [],
-        'employee' => [],
-        'books' => collect(),
-        'purchaseOrders' => collect(),
-        'purchaseCart' => collect(),
-        'teacherRequests' => collect(),
-        'turmas' => collect(),
-        'cargos' => collect(),
-        'funcionarios' => collect(),
-        'suppliers' => collect(),
-        'notifications' => collect(),
-        'professorNotifications' => collect(),
-        'movements' => collect(),
-        'alerts' => collect(),
-        'stockCriticalThreshold' => 8,
-        'lowStockCount' => 0,
-        'totalQuantity' => 0,
-        'pendingTeacherRequests' => 0,
-        'purchaseCartCount' => 0,
-        'withdrawCartCount' => 0,
-        'alertCount' => 0,
-        'supplierCount' => 0,
-    ]);
-});
-
-Route::resource('requisicoes', RequisicaoController::class)
-    ->middleware('employee.auth');
 
 require __DIR__.'/auth.php';

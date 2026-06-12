@@ -7,6 +7,7 @@
     :pending-teacher-requests="$pendingTeacherRequests"
     :alert-count="$alertCount"
     :supplier-count="$supplierCount"
+    :search-books="$books"
 >
     @php
         $booksArray = $books->values();
@@ -66,50 +67,29 @@
     @endphp
 
     @if ($activeView === 'insights')
-        <div class="animate-in fade-in duration-500 max-w-4xl mx-auto pt-4 md:pt-10" x-data="spotlightSearch(@js($booksArray), @js($navigationItems), @js(route('senai.dashboard', ['view' => '__VIEW__'])))">
+        <div class="animate-in fade-in duration-500 max-w-4xl mx-auto pt-4 md:pt-10">
             <div class="text-center mb-10">
                 <h1 class="text-4xl md:text-5xl font-semibold tracking-tight text-gray-900 mb-4">{{ $greeting }}, {{ data_get($employee, 'name', 'Coordenação') }}.</h1>
-                <p class="text-lg text-gray-500 font-medium">Busque livros ou acesse uma área do sistema.</p>
-            </div>
-
-            <div class="relative mb-8">
-                <input
-                    type="search"
-                    x-model="query"
-                    class="w-full rounded-[28px] border border-gray-100 bg-white px-6 py-5 text-lg text-gray-900 shadow-sm outline-none transition focus:border-gray-200 focus:ring-4 focus:ring-gray-100"
-                    placeholder="Ex: retirar, comprar, ISBN, nome do livro..."
-                    autocomplete="off"
-                >
-                <div x-show="results.length > 0" x-cloak class="absolute left-0 right-0 top-[calc(100%+0.75rem)] z-20 overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-xl">
-                    <template x-for="result in results" :key="`${result.type}-${result.title}`">
-                        <a :href="result.url" class="flex items-center justify-between gap-4 border-b border-gray-50 px-5 py-4 last:border-b-0 hover:bg-gray-50">
-                            <div>
-                                <p class="text-sm font-semibold text-gray-900" x-text="result.title"></p>
-                                <p class="text-xs text-gray-500" x-text="result.subtitle"></p>
-                            </div>
-                            <span class="rounded-full bg-gray-100 px-3 py-1 text-[11px] font-bold uppercase text-gray-500" x-text="result.type"></span>
-                        </a>
-                    </template>
-                </div>
+                <p class="text-lg text-gray-500 font-medium">Acompanhe o estoque e as atividades mais importantes.</p>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
                 @if ($canView('reports'))
-                <a href="{{ route('senai.dashboard', ['view' => 'reports']) }}" class="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm hover:border-red-100 hover:bg-red-50/30 transition">
+                <a href="{{ route('senai.dashboard', ['view' => 'reports']) }}" class="senai-surface-hover bg-white rounded-3xl p-6 border border-gray-100 shadow-sm hover:border-red-100 hover:bg-red-50/30 transition">
                     <p class="text-sm text-gray-500 font-medium mb-1">Estoque crítico</p>
                     <p class="text-3xl font-semibold text-gray-900">{{ $lowStockBooks->count() }} títulos</p>
                     <p class="text-sm text-gray-400 mt-1">abaixo de {{ $stockCriticalThreshold }} unidades</p>
                 </a>
                 @endif
                 @if ($canView('library'))
-                <a href="{{ route('senai.dashboard', ['view' => 'library']) }}" class="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm hover:border-gray-200 hover:bg-gray-50 transition">
+                <a href="{{ route('senai.dashboard', ['view' => 'library']) }}" class="senai-surface-hover bg-white rounded-3xl p-6 border border-gray-100 shadow-sm hover:border-gray-200 hover:bg-gray-50 transition">
                     <p class="text-sm text-gray-500 font-medium mb-1">Exemplares no acervo</p>
                     <p class="text-3xl font-semibold text-gray-900">{{ $totalQuantity }}</p>
                     <p class="text-sm text-gray-400 mt-1">livros disponíveis</p>
                 </a>
                 @endif
                 @if ($canView('teacher_requests'))
-                <a href="{{ route('senai.dashboard', ['view' => 'teacher_requests']) }}" class="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm hover:border-amber-100 hover:bg-amber-50/30 transition">
+                <a href="{{ route('senai.dashboard', ['view' => 'teacher_requests']) }}" class="senai-surface-hover bg-white rounded-3xl p-6 border border-gray-100 shadow-sm hover:border-amber-100 hover:bg-amber-50/30 transition">
                     <p class="text-sm text-gray-500 font-medium mb-1">Pedidos pendentes</p>
                     <p class="text-3xl font-semibold text-gray-900">{{ $pendingTeacherRequests }}</p>
                     <p class="text-sm text-gray-400 mt-1">aguardando separação</p>
@@ -220,7 +200,7 @@
                         <span class="text-xs text-gray-400">abaixo de {{ $stockCriticalThreshold }} un</span>
                     </div>
                     <div class="overflow-x-auto max-h-72">
-                        <table class="w-full text-left text-sm">
+                        <table class="w-full text-left text-sm" data-table-skip>
                             <thead class="bg-gray-50/80 text-gray-500 sticky top-0">
                                 <tr>
                                     <th class="px-5 py-3 font-medium">Livro</th>
@@ -249,7 +229,7 @@
                 </div>
             </div>
 
-            <div class="bg-white rounded-3xl border border-gray-100 overflow-hidden shadow-sm" x-data="reportBooksTable(@js($booksArray), {{ $stockCriticalThreshold }})">
+            <div class="bg-white rounded-3xl border border-gray-100 overflow-hidden shadow-sm" x-data="reportBooksTable(@js($booksArray), {{ $stockCriticalThreshold }})" data-native-table-filters>
                 <div class="px-6 py-5 border-b border-gray-100 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <h2 class="text-lg font-semibold text-gray-900">Lista completa de livros</h2>
@@ -321,7 +301,7 @@
                     <h2 class="text-lg font-semibold text-blue-950">Atualizações dos seus pedidos</h2>
                     <div class="mt-4 space-y-3">
                         @foreach ($professorNotifications as $notification)
-                            <div class="rounded-2xl border border-blue-100 bg-white p-4">
+                            <div class="rounded-2xl border border-blue-100 bg-white p-4 shadow-sm transition hover:border-blue-200">
                                 <div class="flex flex-wrap items-center justify-between gap-2">
                                     <p class="font-semibold text-gray-900">{{ $notification['title'] }}</p>
                                     <div class="flex items-center gap-3">
@@ -335,7 +315,7 @@
                                 </div>
                                 <p class="mt-1 text-sm text-gray-600">{{ $notification['message'] }}</p>
                                 <p class="mt-2 text-xs text-gray-500">Turma: {{ $notification['className'] ?? 'Não informada' }} · Curso: {{ $notification['courseName'] ?? 'Não informado' }}</p>
-                                <p class="mt-2 text-xs font-bold uppercase text-blue-700">{{ $notification['status'] ?: 'Atualização' }} · {{ $notification['protocol'] }}</p>
+                                <p class="mt-2 text-xs font-bold uppercase {{ ($notification['status'] ?? null) === 'rejeitado' ? 'text-red-700' : 'text-blue-700' }}">{{ $notification['status'] ?: 'Atualização' }} · {{ $notification['protocol'] }}</p>
                             </div>
                         @endforeach
                     </div>
@@ -357,7 +337,7 @@
                     </div>
                     <span class="text-sm font-semibold text-red-600">Novo pedido</span>
                 </summary>
-                <form method="POST" action="{{ route('stock.teacher-requests.store') }}" class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-5" x-data="teacherRequestForm(@js($turmaOptions), @js($booksArray), @js($initialRequestBookId), @js(['turmaId' => old('turma_id'), 'cursoId' => old('curso_id'), 'bookId' => old('book_id')]))" @reset="resetForm()">
+                <form method="POST" action="{{ route('stock.teacher-requests.store') }}" class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-5" x-data="teacherRequestForm(@js($turmaOptions), @js($booksArray), @js($initialRequestBookId), @js(['turmaId' => old('turma_id'), 'cursoId' => old('curso_id'), 'bookId' => old('book_id')]))">
                     @csrf
                     <div class="md:col-span-2">
                         <label class="block text-sm font-medium text-gray-900 mb-2">Solicitante</label>
@@ -415,7 +395,7 @@
                     </div>
                     <div class="md:col-span-2 flex flex-col gap-3 sm:flex-row">
                         <button type="submit" class="flex-1 rounded-xl bg-gray-900 px-4 py-3.5 text-sm font-semibold text-white hover:bg-gray-800">Adicionar a fila</button>
-                        <button type="reset" class="rounded-xl border border-gray-200 bg-white px-5 py-3.5 text-sm font-semibold text-gray-700 hover:bg-gray-50">Limpar campos</button>
+                        <button type="button" @click="clearForm($el.closest('form'))" class="rounded-xl border border-gray-200 bg-white px-5 py-3.5 text-sm font-semibold text-gray-700 hover:bg-gray-50">Limpar campos</button>
                     </div>
                 </form>
             </details>
@@ -511,7 +491,7 @@
                         </div>
                     </div>
                 @empty
-                    <div class="bg-white rounded-3xl border border-gray-100 p-10 text-center text-gray-500">Nenhum pedido pendente no momento.</div>
+                    <div class="senai-empty">Nenhum pedido pendente no momento.</div>
                 @endforelse
             </div>
             @endif
@@ -525,7 +505,12 @@
                     <span class="text-sm text-gray-400">{{ $historyRequests->count() }} registros</span>
                 </div>
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse text-sm whitespace-nowrap">
+                    <table
+                        class="w-full text-left border-collapse text-sm whitespace-nowrap"
+                        data-table-search-placeholder="Buscar por livro ou solicitante"
+                        data-table-filter-column="{{ $employeeRole === 'Professor' ? 2 : 3 }}"
+                        data-table-filter-label="Todos os status"
+                    >
                         <thead class="bg-gray-50/80 text-gray-500">
                             <tr>
                                 @if ($employeeRole !== 'Professor')
@@ -544,7 +529,18 @@
                                     @if ($employeeRole !== 'Professor')
                                         <td class="px-6 py-4 border-r border-gray-50 font-medium text-gray-900">{{ $request['teacher'] }} <span class="text-xs text-gray-400 font-normal ml-1">({{ $request['subject'] }})</span></td>
                                     @endif
-                                    <td class="px-6 py-4 border-r border-gray-50 text-gray-700">{{ $request['title'] }}</td>
+                                    <td class="px-6 py-4 border-r border-gray-50 text-gray-700">
+                                        <p class="font-medium text-gray-900">{{ $request['title'] }}</p>
+                                        @if ($employeeRole === 'Professor' && ($request['status'] ?? null) === 'rejeitado')
+                                            <details class="group mt-3 max-w-xl whitespace-normal rounded-xl border border-red-100 bg-red-50">
+                                                <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2.5 text-[10px] font-bold uppercase tracking-wide text-red-700">
+                                                    Motivo da rejeição
+                                                    <span class="transition group-open:rotate-180">⌄</span>
+                                                </summary>
+                                                <p class="border-t border-red-100 px-3 py-2.5 text-xs leading-relaxed text-red-800">{{ $request['rejectionReason'] ?? $request['lastMessage'] ?? 'Motivo não informado.' }}</p>
+                                            </details>
+                                        @endif
+                                    </td>
                                     <td class="px-6 py-4 border-r border-gray-50 text-center font-semibold text-gray-700">{{ $request['qty'] }}</td>
                                     <td class="px-6 py-4 border-r border-gray-50 text-center">
                                         @php
@@ -573,7 +569,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="{{ $employeeRole === 'Professor' ? 5 : 6 }}" class="px-6 py-10 text-center text-gray-500">Nenhum pedido encontrado.</td>
+                                    <td colspan="{{ $employeeRole === 'Professor' ? 5 : 6 }}" class="senai-empty-cell">Nenhum pedido encontrado.</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -651,16 +647,44 @@
                         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                             <div>
                                 <p class="font-semibold text-gray-900">{{ $order['orderId'] }}</p>
-                                <p class="mt-1 text-sm text-gray-500">{{ collect($order['items'])->sum(fn ($item) => $item['requestedQty'] ?? $item['quantity'] ?? 0) }} exemplar(es) aguardando aprovação</p>
+                                <p class="mt-1 text-sm text-gray-500">
+                                    {{ collect($order['items'])->sum(fn ($item) => $item['requestedQty'] ?? $item['quantity'] ?? 0) }} exemplar(es)
+                                    solicitados em {{ $order['date'] }} às {{ $order['time'] }}
+                                </p>
+                                <p class="mt-1 text-xs text-gray-500">Solicitado por {{ $order['requestedBy'] ?? 'não informado' }}@if (!empty($order['supplier'])) · Fornecedor: {{ $order['supplier'] }} @endif</p>
                             </div>
                             <form method="POST" action="{{ route('stock.purchases.approve', $order['id']) }}">
                                 @csrf
                                 <button type="submit" class="rounded-xl bg-gray-900 px-5 py-3 text-sm font-semibold text-white hover:bg-gray-800">Aprovar compra</button>
                             </form>
                         </div>
+                        <div class="mt-5 grid gap-3 sm:grid-cols-2">
+                            @foreach ($order['items'] as $item)
+                                <div class="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                                    <div class="flex items-start justify-between gap-4">
+                                        <div>
+                                            <p class="font-semibold text-gray-900">{{ $item['title'] }}</p>
+                                            <p class="mt-1 text-xs text-gray-500">{{ $item['subject'] ?? 'Área não informada' }}@if (!empty($item['isbn'])) · ISBN {{ $item['isbn'] }} @endif</p>
+                                        </div>
+                                        <span class="shrink-0 rounded-lg bg-amber-100 px-3 py-1 text-sm font-bold text-amber-800">{{ $item['requestedQty'] ?? $item['quantity'] ?? 0 }} un.</span>
+                                    </div>
+                                    <p class="mt-3 text-sm text-gray-600">{{ $item['justification'] ?? 'Pedido de compra.' }}</p>
+                                    @if (!empty($item['teacherRequest']))
+                                        <div class="mt-3 border-t border-gray-200 pt-3 text-xs text-gray-500">
+                                            <p class="font-semibold text-gray-700">Solicitação {{ $item['teacherRequest'] }}</p>
+                                            <p>{{ $item['teacherName'] ?? 'Professor não informado' }}@if (!empty($item['className'])) · {{ $item['className'] }} @endif @if (!empty($item['courseName'])) · {{ $item['courseName'] }} @endif</p>
+                                            @if (!empty($item['dueDate'])) <p>Necessário até {{ $item['dueDate'] }}</p> @endif
+                                        </div>
+                                    @endif
+                                </div>
+                            @endforeach
+                        </div>
+                        @if (!empty($order['notes']))
+                            <p class="mt-4 rounded-xl bg-blue-50 px-4 py-3 text-sm text-blue-800"><span class="font-semibold">Observação interna:</span> {{ $order['notes'] }}</p>
+                        @endif
                     </div>
                 @empty
-                    <div class="rounded-3xl border border-gray-100 bg-white p-10 text-center text-gray-500">Nenhuma compra aguardando aprovação.</div>
+                    <div class="senai-empty">Nenhuma compra aguardando aprovação.</div>
                 @endforelse
             </div>
             @endif
@@ -678,77 +702,97 @@
                         </summary>
                         <div class="border-t border-gray-100 p-4 space-y-4">
                             @foreach ($orders as $order)
-                                <div class="bg-gray-50 rounded-2xl border border-gray-100 p-4">
-                                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                        <div>
-                                            <p class="font-semibold text-gray-900">{{ $order['orderId'] }}</p>
-                                            <p class="mt-1 text-sm font-medium text-gray-700">{{ collect($order['items'])->pluck('title')->filter()->join(', ') }}</p>
-                                            <p class="text-xs text-gray-500">Em {{ $order['date'] }} às {{ $order['time'] }}</p>
+                                <details class="group bg-gray-50 rounded-2xl border border-gray-100">
+                                    <summary class="cursor-pointer list-none p-4">
+                                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                            <div>
+                                                <p class="font-semibold text-gray-900">{{ $order['orderId'] }}</p>
+                                                <p class="mt-1 text-sm font-medium text-gray-700">{{ collect($order['items'])->pluck('title')->filter()->join(', ') }}</p>
+                                                <p class="text-xs text-gray-500">Em {{ $order['date'] }} às {{ $order['time'] }} · Clique para ver os detalhes</p>
+                                            </div>
+                                            <div class="flex flex-wrap items-center gap-2">
+                                                @php
+                                                    $purchaseStatus = match ($order['status'] ?? 'pendente_aprovacao') {
+                                                        'entregue' => ['Entregue', 'bg-emerald-50 text-emerald-700 border border-emerald-100'],
+                                                        'recebimento_parcial' => ['Recebimento parcial', 'bg-cyan-50 text-cyan-700 border border-cyan-100'],
+                                                        'aprovado' => ['Aprovado', 'bg-blue-50 text-blue-700 border border-blue-100'],
+                                                        'aguardando' => ['Aguardando aprovacao', 'bg-amber-50 text-amber-700 border border-amber-100'],
+                                                        default => ['Aguardando aprovacao', 'bg-amber-50 text-amber-700 border border-amber-100'],
+                                                    };
+                                                @endphp
+                                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold {{ $purchaseStatus[1] }}">{{ $purchaseStatus[0] }}</span>
+                                                <span class="text-gray-400 transition group-open:rotate-180">⌄</span>
+                                            </div>
                                         </div>
-                                        <div class="flex flex-wrap items-center gap-2">
-                                            @php
-                                                $purchaseStatus = match ($order['status'] ?? 'pendente_aprovacao') {
-                                                    'entregue' => ['Entregue', 'bg-emerald-50 text-emerald-700 border border-emerald-100'],
-                                                    'recebimento_parcial' => ['Recebimento parcial', 'bg-cyan-50 text-cyan-700 border border-cyan-100'],
-                                                    'aprovado' => ['Aprovado', 'bg-blue-50 text-blue-700 border border-blue-100'],
-                                                    'aguardando' => ['Aguardando aprovacao', 'bg-amber-50 text-amber-700 border border-amber-100'],
-                                                    default => ['Aguardando aprovacao', 'bg-amber-50 text-amber-700 border border-amber-100'],
-                                                };
-                                            @endphp
-                                            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold {{ $purchaseStatus[1] }}">
-                                                {{ $purchaseStatus[0] }}
-                                            </span>
+                                    </summary>
+                                    <div class="border-t border-gray-200 bg-white p-4">
+                                        <div class="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                                            <div class="rounded-xl bg-gray-50 p-3"><p class="text-xs font-medium text-gray-500">Quantidade solicitada</p><p class="mt-1 text-lg font-semibold text-gray-900">{{ collect($order['items'])->sum(fn ($item) => $item['requestedQty'] ?? $item['quantity'] ?? 0) }}</p></div>
+                                            <div class="rounded-xl bg-gray-50 p-3"><p class="text-xs font-medium text-gray-500">Quantidade recebida</p><p class="mt-1 text-lg font-semibold text-gray-900">{{ collect($order['items'])->sum(fn ($item) => $item['receivedQty'] ?? 0) }}</p></div>
+                                            <div class="rounded-xl bg-gray-50 p-3"><p class="text-xs font-medium text-gray-500">Quantidade pendente</p><p class="mt-1 text-lg font-semibold text-gray-900">{{ collect($order['items'])->sum(fn ($item) => $item['remainingQty'] ?? $item['requestedQty'] ?? $item['quantity'] ?? 0) }}</p></div>
+                                            <div class="rounded-xl bg-gray-50 p-3"><p class="text-xs font-medium text-gray-500">Solicitado por</p><p class="mt-1 text-sm font-semibold text-gray-900">{{ $order['requestedBy'] ?? 'Não informado' }}</p></div>
+                                        </div>
+                                        <div class="mb-4 flex flex-wrap gap-2">
                                             @if (in_array(($order['status'] ?? ''), ['aprovado', 'recebimento_parcial'], true) && !empty($order['id']) && $can('purchases.deliver'))
-                                                <a href="{{ route('senai.dashboard', ['view' => 'stock', 'tab' => 'entrada']) }}" class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700">Registrar recebimento</a>
+                                                <a href="{{ route('senai.dashboard', ['view' => 'stock', 'tab' => 'entrada']) }}" class="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700">Registrar recebimento</a>
                                             @endif
+                                            <button type="button" onclick="window.print()" class="rounded-lg bg-gray-900 px-3 py-2 text-xs font-medium text-white">Imprimir</button>
                                         </div>
-                                    </div>
-                                    <details class="mt-4 rounded-xl bg-white border border-gray-100">
-                                        <summary class="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-gray-700 flex items-center justify-between">
-                                            Detalhes da planilha
-                                            <button type="button" onclick="window.print()" class="rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-medium text-white">Imprimir</button>
-                                        </summary>
-                                        <div class="overflow-x-auto border-t border-gray-100">
-                                            <table class="w-full text-left text-sm">
+                                        @if (!empty($order['notes']))
+                                            <p class="mb-4 rounded-xl bg-blue-50 px-4 py-3 text-sm text-blue-800"><span class="font-semibold">Observação interna:</span> {{ $order['notes'] }}</p>
+                                        @endif
+                                        <div class="overflow-x-auto rounded-xl border border-gray-100">
+                                            <table class="w-full text-left text-sm" data-table-skip>
                                                 <thead class="bg-gray-50 text-gray-500">
                                                     <tr>
                                                         <th class="px-4 py-3 font-medium">Material</th>
-                                                        <th class="px-4 py-3 font-medium">Tipo</th>
-                                                        <th class="px-4 py-3 font-medium text-right">Qtd.</th>
+                                                        <th class="px-4 py-3 font-medium">Solicitação</th>
+                                                        <th class="px-4 py-3 font-medium text-right">Solicitado</th>
+                                                        <th class="px-4 py-3 font-medium text-right">Recebido</th>
+                                                        <th class="px-4 py-3 font-medium text-right">Pendente</th>
                                                         <th class="px-4 py-3 font-medium">Justificativa</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
                                                     @foreach ($order['items'] as $item)
                                                         <tr class="border-t border-gray-50">
-                                                            <td class="px-4 py-3 font-medium text-gray-900">{{ $item['title'] }}</td>
-                                                            <td class="px-4 py-3 text-gray-500">Reposição</td>
+                                                            <td class="px-4 py-3"><p class="font-medium text-gray-900">{{ $item['title'] }}</p><p class="text-xs text-gray-500">{{ $item['subject'] ?? 'Área não informada' }}@if (!empty($item['isbn'])) · ISBN {{ $item['isbn'] }} @endif</p></td>
+                                                            <td class="px-4 py-3 text-gray-500">@if (!empty($item['teacherRequest']))<p class="font-medium text-gray-700">{{ $item['teacherRequest'] }}</p><p class="text-xs">{{ $item['teacherName'] ?? 'Professor não informado' }}@if (!empty($item['className'])) · {{ $item['className'] }} @endif</p>@else Reposição de estoque @endif</td>
                                                             <td class="px-4 py-3 text-right font-semibold text-gray-900">{{ $item['requestedQty'] ?? $item['quantity'] ?? 0 }}</td>
+                                                            <td class="px-4 py-3 text-right font-semibold text-emerald-700">{{ $item['receivedQty'] ?? 0 }}</td>
+                                                            <td class="px-4 py-3 text-right font-semibold text-amber-700">{{ $item['remainingQty'] ?? $item['requestedQty'] ?? $item['quantity'] ?? 0 }}</td>
                                                             <td class="px-4 py-3 text-gray-500">{{ $item['justification'] ?? 'Pedido de compra.' }}</td>
                                                         </tr>
                                                     @endforeach
                                                 </tbody>
                                             </table>
                                         </div>
-                                    </details>
-                                </div>
+                                    </div>
+                                </details>
                             @endforeach
                         </div>
                     </details>
                 @empty
-                    <div class="bg-white rounded-3xl border border-gray-100 p-10 text-center text-gray-500">Nenhuma planilha de compra registrada no sistema.</div>
+                    <div class="senai-empty">Nenhuma planilha de compra registrada no sistema.</div>
                 @endforelse
             </div>
             </div>
         </div>
     @elseif ($activeView === 'book_registration')
         <div class="animate-in fade-in duration-500 max-w-4xl mx-auto">
-            <div class="mb-8">
+            <div class="senai-school-hero">
+                <p class="text-xs font-bold uppercase tracking-[0.18em] text-red-600">Escola · Acervo</p>
                 <h1 class="text-3xl font-semibold tracking-tight text-gray-900">Livro</h1>
                 <p class="text-gray-500 mt-1 text-base">Inclua um novo título no catálogo e registre seu estoque inicial.</p>
+                <div class="mt-5 flex flex-wrap gap-2 text-xs font-semibold text-gray-600">
+                    <span class="rounded-full bg-gray-100 px-3 py-1.5">{{ $booksArray->count() }} títulos</span>
+                    <span class="rounded-full bg-red-50 px-3 py-1.5 text-red-700">{{ $lowStockBooks->count() }} em estoque crítico</span>
+                </div>
             </div>
 
-            <form method="POST" action="{{ route('stock.books.store-new') }}" enctype="multipart/form-data" class="mx-auto max-w-3xl rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6" x-data="bookRegistrationForm()">
+            <details class="mx-auto max-w-3xl rounded-3xl border border-gray-100 bg-white shadow-sm" @if ($errors->any()) open @endif>
+            <summary class="cursor-pointer list-none px-6 py-5 font-semibold text-gray-900">Cadastrar novo livro</summary>
+            <form method="POST" action="{{ route('stock.books.store-new') }}" enctype="multipart/form-data" class="border-t border-gray-100 p-5 sm:p-6" x-data="bookRegistrationForm()">
                 @csrf
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div class="sm:col-span-2">
@@ -767,6 +811,14 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-900 mb-2">ISBN (opcional)</label>
                     <input type="text" name="isbn" x-model="isbn" @input="maskIsbn()" inputmode="numeric" class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm focus:ring-2 focus:ring-red-500 outline-none" placeholder="Somente números e hífens">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-900 mb-2">Ano de publicação</label>
+                    <input type="number" name="publication_year" value="{{ old('publication_year') }}" min="1900" max="{{ now()->year + 1 }}" class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm focus:ring-2 focus:ring-red-500 outline-none" placeholder="Ex: {{ now()->year }}">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-900 mb-2">Páginas</label>
+                    <input type="number" name="pages" value="{{ old('pages') }}" min="1" class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm focus:ring-2 focus:ring-red-500 outline-none" placeholder="Ex: 240">
                 </div>
                 <div class="sm:col-span-2">
                     <label class="block text-sm font-medium text-gray-900 mb-2">Descrição</label>
@@ -787,14 +839,23 @@
                 <button type="submit" class="sm:col-span-2 w-full rounded-xl bg-gray-900 px-4 py-3 text-sm font-semibold text-white hover:bg-gray-800">Cadastrar livro</button>
                 </div>
             </form>
+            </details>
 
-            <div class="mt-10 overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm" x-data="bookEditTable()">
+            <div class="mt-10 overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm" x-data="bookEditTable(@js($booksArray))" data-native-table-filters>
                 <div class="flex flex-col gap-3 border-b border-gray-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <h2 class="text-xl font-semibold text-gray-900">Livros cadastrados</h2>
                         <p class="mt-1 text-sm text-gray-500">Localize um livro e abra sua linha para editar.</p>
                     </div>
-                    <input type="search" x-model="query" class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 outline-none sm:w-64" placeholder="Buscar livro">
+                    <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                        <input type="search" x-model="query" class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 outline-none sm:w-64" placeholder="Buscar pelo nome do livro">
+                        <select x-model="subject" class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 outline-none sm:w-56">
+                            <option value="">Todas as áreas</option>
+                            <template x-for="area in subjects" :key="area">
+                                <option :value="area" x-text="area"></option>
+                            </template>
+                        </select>
+                    </div>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-sm whitespace-nowrap">
@@ -825,6 +886,8 @@
                                             <input type="text" name="isbn" value="{{ $book['isbn'] }}" class="rounded-xl border border-gray-300 bg-white px-4 py-3" placeholder="ISBN">
                                             <input type="text" name="subject" value="{{ $book['subject'] }}" list="course-options" required class="rounded-xl border border-gray-300 bg-white px-4 py-3" aria-label="Curso ou área">
                                             <input type="number" name="minimum_stock" value="{{ $book['minimumStock'] }}" min="1" required class="rounded-xl border border-gray-300 bg-white px-4 py-3" aria-label="Estoque mínimo">
+                                            <input type="number" name="publication_year" value="{{ $book['year'] }}" min="1900" max="{{ now()->year + 1 }}" class="rounded-xl border border-gray-300 bg-white px-4 py-3" placeholder="Ano de publicação" aria-label="Ano de publicação">
+                                            <input type="number" name="pages" value="{{ $book['pages'] }}" min="1" class="rounded-xl border border-gray-300 bg-white px-4 py-3" placeholder="Páginas" aria-label="Páginas">
                                             <select name="status" class="rounded-xl border border-gray-300 bg-white px-4 py-3" aria-label="Status">
                                                 <option value="ativo" @selected($book['status'] === 'ativo')>Ativo</option>
                                                 <option value="inativo" @selected($book['status'] === 'inativo')>Inativo</option>
@@ -841,7 +904,7 @@
                                     </td>
                                 </tr>
                             @empty
-                                <tr><td colspan="4" class="px-6 py-10 text-center text-gray-500">Nenhum livro cadastrado.</td></tr>
+                                <tr><td colspan="4" class="senai-empty-cell">Nenhum livro cadastrado.</td></tr>
                             @endforelse
                         </tbody>
                     </table>
@@ -863,7 +926,7 @@
                         <span class="text-xs font-bold uppercase tracking-widest text-gray-500" x-text="selectedBook?.subject"></span>
                         <div>
                             <p class="text-2xl font-semibold leading-tight text-gray-900" x-text="selectedBook?.title"></p>
-                            <p class="mt-3 text-sm text-gray-500" x-text="selectedBook?.publisher"></p>
+                            <p class="mt-3 text-sm text-gray-500" x-text="selectedBook?.isbn"></p>
                         </div>
                     </div>
                 </div>
@@ -873,9 +936,8 @@
                     <p class="mt-4 text-gray-600 leading-relaxed" x-text="selectedBook?.desc"></p>
                     <dl class="mt-6 grid grid-cols-2 gap-4 text-sm">
                         <div><dt class="text-gray-400">ISBN</dt><dd class="font-semibold text-gray-900" x-text="selectedBook?.isbn"></dd></div>
-                        <div><dt class="text-gray-400">Ano</dt><dd class="font-semibold text-gray-900" x-text="selectedBook?.year"></dd></div>
-                        <div><dt class="text-gray-400">Editora</dt><dd class="font-semibold text-gray-900" x-text="selectedBook?.publisher"></dd></div>
-                        <div><dt class="text-gray-400">Páginas</dt><dd class="font-semibold text-gray-900" x-text="selectedBook?.pages"></dd></div>
+                        <div><dt class="text-gray-400">Ano</dt><dd class="font-semibold text-gray-900" x-text="selectedBook?.year || 'Não informado'"></dd></div>
+                        <div><dt class="text-gray-400">Páginas</dt><dd class="font-semibold text-gray-900" x-text="selectedBook?.pages || 'Não informado'"></dd></div>
                     </dl>
                 </div>
                 <div class="lg:col-span-3">
@@ -1051,7 +1113,7 @@
                 </div>
             @endif
             @if ($ordersToReceive->isEmpty())
-                <div class="rounded-3xl border border-gray-100 bg-white p-10 text-center text-gray-500">Nenhuma compra aprovada aguardando entrada.</div>
+                <div class="senai-empty">Nenhuma compra aprovada aguardando entrada.</div>
             @endif
             </div>
 
@@ -1090,7 +1152,7 @@
                 </div>
             @endif
             @if ($requestsToFulfill->isEmpty())
-                <div class="rounded-3xl border border-gray-100 bg-white p-10 text-center text-gray-500">Nenhum pedido aprovado aguardando separação.</div>
+                <div class="senai-empty">Nenhum pedido aprovado aguardando separação.</div>
             @endif
             </div>
 
@@ -1116,7 +1178,12 @@
                     <span class="text-sm text-gray-400">últimos 60 lançamentos</span>
                 </div>
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left text-sm whitespace-nowrap">
+                    <table
+                        class="w-full text-left text-sm whitespace-nowrap"
+                        data-table-search-placeholder="Buscar material ou responsável"
+                        data-table-filter-column="0"
+                        data-table-filter-label="Todos os tipos"
+                    >
                         <thead class="bg-gray-50/80 text-gray-500">
                             <tr>
                                 <th class="px-6 py-4 font-medium">Tipo</th>
@@ -1143,7 +1210,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="6" class="px-6 py-10 text-center text-gray-500">Nenhuma movimentação registrada ainda.</td>
+                                    <td colspan="6" class="senai-empty-cell">Nenhuma movimentação registrada ainda.</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -1207,7 +1274,7 @@
                         @endif
                     </div>
                 @empty
-                    <div class="bg-white rounded-3xl border border-gray-100 p-10 text-center text-gray-500">Sem alertas no momento.</div>
+                    <div class="senai-empty">Sem alertas no momento.</div>
                 @endforelse
             </div>
         </div>
@@ -1245,19 +1312,24 @@
                     <p class="mt-6 text-sm text-gray-500">O sistema utiliza exclusivamente este fornecedor para reposição e novos títulos.</p>
                 </div>
             @else
-                <div class="bg-white rounded-3xl border border-gray-100 p-10 text-center text-gray-500">Fornecedor padrão não configurado.</div>
+                <div class="senai-empty">Fornecedor padrão não configurado.</div>
             @endif
         </div>
     @elseif ($activeView === 'courses')
-        <div class="animate-in fade-in duration-500 max-w-4xl">
-            <div class="mb-8">
+        <div class="animate-in fade-in duration-500 max-w-5xl" x-data="{ courseSearch: '' }">
+            <div class="senai-school-hero">
+                <p class="text-xs font-bold uppercase tracking-[0.18em] text-red-600">Escola · Organização</p>
                 <h1 class="text-3xl font-semibold tracking-tight text-gray-900">Curso</h1>
                 <p class="text-gray-500 mt-1 text-base">Crie as áreas usadas para relacionar livros e turmas.</p>
+                <div class="mt-5 flex flex-wrap gap-2 text-xs font-semibold text-gray-600">
+                    <span class="rounded-full bg-gray-100 px-3 py-1.5">{{ $cursos->count() }} cursos</span>
+                    <span class="rounded-full bg-red-50 px-3 py-1.5 text-red-700">{{ $turmas->count() }} turmas vinculadas</span>
+                </div>
             </div>
 
-            <div class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 mb-8">
-                <h2 class="text-lg font-semibold text-gray-900 mb-5">Novo curso</h2>
-                <form method="POST" action="{{ route('stock.courses.store') }}" class="grid grid-cols-1 gap-5">
+            <details class="mb-8 rounded-3xl border border-gray-100 bg-white shadow-sm">
+                <summary class="cursor-pointer list-none px-6 py-5 text-lg font-semibold text-gray-900">Cadastrar novo curso</summary>
+                <form method="POST" action="{{ route('stock.courses.store') }}" class="grid grid-cols-1 gap-5 border-t border-gray-100 p-6">
                     @csrf
                     <div>
                         <label class="block text-sm font-medium text-gray-900 mb-2">Nome do curso / área</label>
@@ -1270,27 +1342,33 @@
                         <button type="submit" class="rounded-xl bg-gray-900 px-5 py-3 text-sm font-semibold text-white hover:bg-gray-800">Cadastrar curso</button>
                     </div>
                 </form>
-            </div>
+            </details>
 
             <div class="bg-white rounded-3xl border border-gray-100 overflow-hidden shadow-sm">
-                <div class="px-6 py-5 border-b border-gray-100">
+                <div class="px-6 py-5 border-b border-gray-100 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <h2 class="text-lg font-semibold text-gray-900">Cursos cadastrados</h2>
+                    <input type="search" x-model="courseSearch" class="senai-table-filter" placeholder="Buscar curso">
                 </div>
                 <div class="grid grid-cols-1 gap-3 p-6 sm:grid-cols-2">
                     @forelse ($cursos as $curso)
-                        <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-                            <form method="POST" action="{{ route('stock.courses.update', $curso) }}" class="space-y-3">
+                        <div x-show="@js(strtolower($curso->nome_curso)).includes(courseSearch.toLowerCase())" class="senai-surface-hover rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                            @php $courseFormId = 'course-' . $curso->id; @endphp
+                            <form id="{{ $courseFormId }}" method="POST" action="{{ route('stock.courses.update', $curso) }}">
                                 @csrf
                                 @method('PUT')
                                 <input type="text" name="nome_curso" value="{{ $curso->nome_curso }}" required class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 font-semibold text-gray-900">
+                            </form>
+                            <div class="mt-3 flex items-center justify-between gap-3">
                                 <p class="text-xs text-gray-500">{{ $curso->turmas_count ?? $turmas->where('curso_id', $curso->id)->count() }} turma(s)</p>
-                                <button type="submit" class="rounded-lg bg-gray-900 px-3 py-2 text-xs font-semibold text-white">Salvar</button>
-                            </form>
-                            <form method="POST" action="{{ route('stock.courses.destroy', $curso) }}" class="mt-2" onsubmit="return confirm('Excluir este curso?');">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">Excluir</button>
-                            </form>
+                                <div class="flex items-center gap-2">
+                                    <button form="{{ $courseFormId }}" type="submit" class="rounded-lg bg-gray-900 px-3 py-2 text-xs font-semibold text-white">Salvar</button>
+                                    <form method="POST" action="{{ route('stock.courses.destroy', $curso) }}" onsubmit="return confirm('Excluir este curso?');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">Excluir</button>
+                                    </form>
+                                </div>
+                            </div>
                         </div>
                     @empty
                         <p class="text-sm text-gray-500">Nenhum curso cadastrado.</p>
@@ -1299,16 +1377,17 @@
             </div>
         </div>
     @elseif ($activeView === 'classes')
-        <div class="animate-in fade-in duration-500">
-            <div class="mb-8">
+        <div class="animate-in fade-in duration-500" x-data="{ classSearch: '', courseFilter: '' }">
+            <div class="senai-school-hero">
+                <p class="text-xs font-bold uppercase tracking-[0.18em] text-red-600">Escola · Turmas</p>
                 <h1 class="text-3xl font-semibold tracking-tight text-gray-900">Turmas</h1>
                 <p class="text-gray-500 mt-1 text-base">Mapa rápido das turmas usadas como destino nas retiradas.</p>
             </div>
 
             @if ($can('classes.manage'))
-            <div class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 mb-8">
-                <h2 class="text-lg font-semibold text-gray-900 mb-5">Cadastrar nova turma</h2>
-                <form method="POST" action="{{ route('stock.classes.store') }}" class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <details class="mb-8 rounded-3xl border border-gray-100 bg-white shadow-sm">
+                <summary class="cursor-pointer list-none px-6 py-5 text-lg font-semibold text-gray-900">Cadastrar nova turma</summary>
+                <form method="POST" action="{{ route('stock.classes.store') }}" class="grid grid-cols-1 gap-5 border-t border-gray-100 p-6 md:grid-cols-2">
                     @csrf
                     <div>
                         <label class="block text-sm font-medium text-gray-900 mb-2">Nome da turma</label>
@@ -1327,27 +1406,37 @@
                         <button type="submit" class="rounded-xl bg-gray-900 px-5 py-3 text-sm font-semibold text-white hover:bg-gray-800">Cadastrar turma</button>
                     </div>
                 </form>
-            </div>
+            </details>
             @endif
 
-            <div class="mb-6 flex flex-wrap gap-3">
-                <div class="inline-flex items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
+            <div class="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div class="senai-school-stat flex items-center gap-3">
                     <span class="text-2xl font-semibold text-gray-900">{{ $turmas->count() }}</span>
                     <span class="text-sm font-medium text-gray-500">turmas cadastradas</span>
                 </div>
-                <div class="inline-flex items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
+                <div class="senai-school-stat flex items-center gap-3">
                     <span class="text-2xl font-semibold text-gray-900">{{ $turmas->pluck('curso_id')->unique()->count() }}</span>
                     <span class="text-sm font-medium text-gray-500">cursos com turmas</span>
                 </div>
             </div>
 
+            <div class="mb-5 flex flex-col gap-2 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:flex-row">
+                <input type="search" x-model="classSearch" class="senai-table-filter" placeholder="Buscar turma">
+                <select x-model="courseFilter" class="senai-table-filter">
+                    <option value="">Todos os cursos</option>
+                    @foreach ($cursos as $curso)
+                        <option value="{{ $curso->nome_curso }}">{{ $curso->nome_curso }}</option>
+                    @endforeach
+                </select>
+            </div>
+
             <div class="space-y-4">
                 @forelse ($turmas->groupBy(fn ($turma) => $turma->curso?->nome_curso ?? 'Sem curso') as $courseName => $courseClasses)
-                    <section class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-                        <div class="flex items-center justify-between border-b border-gray-100 bg-gray-50/70 px-4 py-3">
+                    <details open x-show="(!courseFilter || courseFilter === @js($courseName)) && (!classSearch || @js(strtolower($courseClasses->pluck('nome_turma')->join(' '))).includes(classSearch.toLowerCase()))" class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+                        <summary class="flex cursor-pointer list-none items-center justify-between border-b border-gray-100 bg-gray-50/70 px-4 py-3">
                             <h2 class="text-sm font-semibold text-gray-900">{{ $courseName }}</h2>
                             <span class="text-xs font-medium text-gray-400">{{ $courseClasses->count() }} turma(s)</span>
-                        </div>
+                        </summary>
                         <div class="divide-y divide-gray-100">
                             @foreach ($courseClasses as $turma)
                                 <div class="flex flex-col gap-2 px-4 py-3 md:flex-row md:items-center">
@@ -1370,16 +1459,17 @@
                                 </div>
                             @endforeach
                         </div>
-                    </section>
+                    </details>
                 @empty
-                    <div class="bg-white rounded-3xl border border-gray-100 p-10 text-center text-gray-500">Nenhuma turma cadastrada.</div>
+                    <div class="senai-empty">Nenhuma turma cadastrada.</div>
                 @endforelse
             </div>
         </div>
     @elseif ($activeView === 'people')
         <div class="animate-in fade-in duration-500" x-data="{ search: '', role: 'todos' }">
-            <div class="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div class="senai-school-hero flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
+                    <p class="text-xs font-bold uppercase tracking-[0.18em] text-red-600">Escola · Equipe</p>
                     <h1 class="text-3xl font-semibold tracking-tight text-gray-900">Equipe</h1>
                     <p class="text-gray-500 mt-1 text-base">Consulte acessos e gerencie os colaboradores do sistema.</p>
                 </div>
@@ -1391,26 +1481,26 @@
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div class="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm">
+                <div class="senai-school-stat">
                     <p class="text-sm text-gray-500 font-medium">Funcionários</p>
                     <p class="mt-2 text-4xl font-semibold text-gray-900">{{ $funcionarios->count() }}</p>
                 </div>
-                <div class="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm">
+                <div class="senai-school-stat">
                     <p class="text-sm text-gray-500 font-medium">Coordenadores</p>
                     <p class="mt-2 text-4xl font-semibold text-gray-900">{{ $funcionarios->filter(fn ($item) => $item->cargo?->Nome_cargo === 'Coordenador')->count() }}</p>
                 </div>
-                <div class="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm">
+                <div class="senai-school-stat">
                     <p class="text-sm text-gray-500 font-medium">Professores</p>
                     <p class="mt-2 text-4xl font-semibold text-gray-900">{{ $funcionarios->filter(fn ($item) => $item->cargo?->Nome_cargo === 'Professor')->count() }}</p>
                 </div>
             </div>
 
-            <div class="bg-white rounded-3xl border border-gray-100 overflow-hidden shadow-sm">
+            <div class="bg-white rounded-3xl border border-gray-100 overflow-hidden shadow-sm" data-native-table-filters>
                 <div class="px-6 py-5 border-b border-gray-100 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <h2 class="text-lg font-semibold text-gray-900">Lista da equipe</h2>
                     <div class="flex flex-col gap-2 sm:flex-row">
                         <input type="search" x-model="search" class="rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm" placeholder="Buscar nome ou NIF">
-                        <select x-model="role" class="rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm">
+                        <select x-model="role" class="min-w-48 appearance-none rounded-xl border border-gray-200 bg-gray-50 bg-none px-4 py-2 pr-4 text-sm">
                             <option value="todos">Todos os acessos</option>
                             <option value="Coordenador">Coordenadores</option>
                             <option value="Professor">Professores</option>
@@ -1461,7 +1551,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="4" class="px-6 py-10 text-center text-gray-500">Nenhum funcionário cadastrado.</td>
+                                    <td colspan="4" class="senai-empty-cell">Nenhum funcionário cadastrado.</td>
                                 </tr>
                             @endforelse
                         </tbody>

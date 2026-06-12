@@ -38,6 +38,8 @@ class StockService
                 'isbn' => ($data['isbn'] ?? null) ?: 'SEM-' . Str::upper(Str::random(8)),
                 'subject' => $data['subject'],
                 'description' => $data['description'] ?? null,
+                'pages' => $data['pages'] ?? null,
+                'publication_year' => $data['publication_year'] ?? null,
                 'image_path' => $data['image_path'] ?? null,
                 'quantity' => (int) $data['quantity'],
                 'minimum_stock' => (int) ($data['minimum_stock'] ?? config('senaistock.low_stock_threshold', 8)),

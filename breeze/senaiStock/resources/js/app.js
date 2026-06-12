@@ -40,6 +40,18 @@ Alpine.data('spotlightSearch', (books = [], pages = [], routeTemplate = '/dashbo
 		return routeTemplate.replace('__VIEW__', id);
 	},
 
+	bookUrl(book) {
+		if (this.pages.some((page) => page.id === 'library')) {
+			return this.pageUrl('library');
+		}
+
+		if (this.pages.some((page) => page.id === 'teacher_requests')) {
+			return `${this.pageUrl('teacher_requests')}?book_id=${book.id}`;
+		}
+
+		return this.pageUrl(this.pages[0]?.id || 'insights');
+	},
+
 	get results() {
 		const term = this.normalize(this.query);
 
@@ -64,7 +76,7 @@ Alpine.data('spotlightSearch', (books = [], pages = [], routeTemplate = '/dashbo
 				type: 'Livro',
 				title: book.title,
 				subtitle: `${book.subject} • ${book.quantity} un`,
-				url: this.pageUrl('library'),
+				url: this.bookUrl(book),
 			}));
 
 		return [...pageResults, ...bookResults].slice(0, 7);
@@ -103,8 +115,10 @@ Alpine.data('preservedTabs', (initialTab = 'entrada') => ({
 	},
 }));
 
-Alpine.data('bookEditTable', () => ({
+Alpine.data('bookEditTable', (books = []) => ({
+	books,
 	query: '',
+	subject: '',
 	selectedId: null,
 
 	normalize(value) {
@@ -113,7 +127,13 @@ Alpine.data('bookEditTable', () => ({
 
 	matches(book) {
 		const term = this.normalize(this.query);
-		return !term || this.normalize(`${book.title} ${book.isbn} ${book.subject}`).includes(term);
+		return (!term || this.normalize(`${book.title} ${book.isbn} ${book.subject}`).includes(term))
+			&& (!this.subject || book.subject === this.subject);
+	},
+
+	get subjects() {
+		return [...new Set(this.books.map((book) => book.subject).filter(Boolean))]
+			.sort((a, b) => String(a).localeCompare(String(b), 'pt-BR'));
 	},
 
 	toggle(bookId) {
@@ -193,10 +213,20 @@ Alpine.data('teacherRequestForm', (turmas = [], books = [], initialBookId = '', 
 		}
 	},
 
-	resetForm() {
+	clearForm(form) {
 		this.turmaId = '';
 		this.cursoId = '';
 		this.bookId = initialBookId ? String(initialBookId) : '';
+
+		form?.querySelectorAll('input, textarea, select').forEach((field) => {
+			if (field.type === 'hidden' || field.type === 'submit' || field.type === 'reset' || field.readOnly) {
+				return;
+			}
+
+			field.value = '';
+			field.dispatchEvent(new Event('input', { bubbles: true }));
+			field.dispatchEvent(new Event('change', { bubbles: true }));
+		});
 	},
 }));
 
@@ -356,6 +386,113 @@ Alpine.start();
 
 const scrollStorageKey = 'senai-stock-navigation-scroll';
 
+function enhanceTables() {
+	document.querySelectorAll('main table:not([data-table-enhanced]):not([data-table-skip])').forEach((table, index) => {
+		table.dataset.tableEnhanced = 'true';
+
+		const viewport = table.parentElement;
+		if (!viewport) {
+			return;
+		}
+
+		const hasNativeFilters = table.closest('[data-native-table-filters]');
+		const hasNoFilters = table.hasAttribute('data-table-no-filters');
+		const toolbar = document.createElement('div');
+		toolbar.className = 'senai-table-tools no-print';
+
+		const controls = document.createElement('div');
+		controls.className = 'flex flex-1 flex-col gap-2 sm:flex-row';
+
+		if (!hasNativeFilters && !hasNoFilters) {
+			const normalize = (value) => value
+				.normalize('NFD')
+				.replace(/[\u0300-\u036f]/g, '')
+				.toLowerCase()
+				.trim();
+			const search = document.createElement('input');
+			search.type = 'search';
+			search.className = 'senai-table-filter';
+			search.placeholder = table.dataset.tableSearchPlaceholder || 'Buscar registros';
+			search.setAttribute('aria-label', search.placeholder);
+
+			const filterColumn = table.dataset.tableFilterColumn;
+			let select = null;
+
+			if (filterColumn !== undefined) {
+				select = document.createElement('select');
+				select.className = 'senai-table-filter sm:max-w-52';
+				select.setAttribute('aria-label', table.dataset.tableFilterLabel || 'Filtrar registros');
+
+				const defaultOption = document.createElement('option');
+				defaultOption.value = '';
+				defaultOption.textContent = table.dataset.tableFilterLabel || 'Todos os tipos';
+				select.append(defaultOption);
+
+				const values = new Set();
+				table.querySelectorAll('tbody tr').forEach((row) => {
+					if (row.querySelector('[colspan]')) {
+						return;
+					}
+
+					const value = row.cells[Number(filterColumn)]?.textContent.trim();
+					if (value) {
+						values.add(value);
+					}
+				});
+
+				[...values].sort((left, right) => left.localeCompare(right, 'pt-BR')).forEach((value) => {
+					const option = document.createElement('option');
+					option.value = value;
+					option.textContent = value;
+					select.append(option);
+				});
+			}
+
+			const filterRows = () => {
+				const term = normalize(search.value);
+				const selectedValue = normalize(select?.value || '');
+
+				table.querySelectorAll('tbody tr').forEach((row) => {
+					if (row.querySelector('[colspan]')) {
+						return;
+					}
+
+					const rowContent = normalize(row.textContent);
+					const filterContent = filterColumn === undefined
+						? ''
+						: normalize(row.cells[Number(filterColumn)]?.textContent || '');
+					row.hidden = (Boolean(term) && !rowContent.includes(term))
+						|| (Boolean(selectedValue) && filterContent !== selectedValue);
+				});
+			};
+
+			search.addEventListener('input', filterRows);
+			select?.addEventListener('change', filterRows);
+			controls.append(search);
+			if (select) {
+				controls.append(select);
+			}
+		}
+
+		const toggle = document.createElement('button');
+		toggle.type = 'button';
+		toggle.className = 'senai-table-toggle';
+		toggle.textContent = 'Ocultar tabela';
+		toggle.setAttribute('aria-expanded', 'true');
+		toggle.setAttribute('aria-controls', `senai-table-${index}`);
+		viewport.id ||= `senai-table-${index}`;
+		toggle.addEventListener('click', () => {
+			const willOpen = viewport.hidden;
+			viewport.hidden = !willOpen;
+			toggle.textContent = willOpen ? 'Ocultar tabela' : 'Mostrar tabela';
+			toggle.setAttribute('aria-expanded', String(willOpen));
+		});
+
+		toolbar.append(controls, toggle);
+		viewport.before(toolbar);
+	});
+}
+
 document.addEventListener('click', (event) => {
 	const link = event.target.closest('[data-preserve-scroll]');
 	if (link) {
@@ -387,3 +524,6 @@ window.addEventListener('pageshow', () => {
 		navigation.scrollTop = Number(storedScroll.navigation);
 	}
 });
+
+document.addEventListener('DOMContentLoaded', enhanceTables);
+document.addEventListener('alpine:initialized', enhanceTables);

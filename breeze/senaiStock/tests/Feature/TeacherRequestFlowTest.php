@@ -335,6 +335,27 @@ class TeacherRequestFlowTest extends TestCase
         ]])
             ->get(route('senai.dashboard', ['view' => 'teacher_requests']))
             ->assertOk()
+            ->assertSee('Seu pedido foi rejeitado. Consulte o motivo na tabela Meus Pedidos.')
+            ->assertSee('Motivo da rejeição')
+            ->assertSee('Pedido recusado por conflito de agenda.');
+
+        $this->withSession(['employee' => [
+            'id' => $professor->Id_funcionario,
+            'name' => $professor->Nome,
+            'cargo' => 'Professor',
+        ]])
+            ->delete(route('stock.teacher-requests.notifications.dismiss', $teacherRequest))
+            ->assertRedirect();
+
+        $this->withSession(['employee' => [
+            'id' => $professor->Id_funcionario,
+            'name' => $professor->Nome,
+            'cargo' => 'Professor',
+        ]])
+            ->get(route('senai.dashboard', ['view' => 'teacher_requests']))
+            ->assertOk()
+            ->assertDontSee('Seu pedido foi rejeitado. Consulte o motivo na tabela Meus Pedidos.')
+            ->assertSee('Motivo da rejeição')
             ->assertSee('Pedido recusado por conflito de agenda.');
     }
 }

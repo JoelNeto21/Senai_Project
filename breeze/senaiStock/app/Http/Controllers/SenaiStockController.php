@@ -131,7 +131,9 @@ class SenaiStockController extends Controller
                         'className' => $teacherRequest->class_name,
                         'courseName' => $teacherRequest->course_name,
                         'status' => $message?->status ?? $teacherRequest->status,
-                        'message' => $message?->message ?? $teacherRequest->notes ?? 'Pedido registrado.',
+                        'message' => ($message?->status ?? $teacherRequest->status) === 'rejeitado'
+                            ? 'Seu pedido foi rejeitado. Consulte o motivo na tabela Meus Pedidos.'
+                            : ($message?->message ?? $teacherRequest->notes ?? 'Pedido registrado.'),
                         'date' => ($message?->created_at ?? $teacherRequest->updated_at)?->format('d/m/Y H:i'),
                     ];
                 })
@@ -294,6 +296,8 @@ class SenaiStockController extends Controller
             'image' => ['nullable', 'image', 'max:4096'],
             'status' => ['nullable', 'in:ativo,inativo'],
             'description' => ['nullable', 'string', 'max:1000'],
+            'pages' => ['nullable', 'integer', 'min:1', 'max:99999'],
+            'publication_year' => ['nullable', 'integer', 'min:1900', 'max:'.(now()->year + 1)],
         ]);
 
         if ($request->hasFile('image')) {
@@ -319,6 +323,8 @@ class SenaiStockController extends Controller
             'image' => ['nullable', 'image', 'max:4096'],
             'status' => ['required', 'in:ativo,inativo'],
             'description' => ['nullable', 'string', 'max:1000'],
+            'pages' => ['nullable', 'integer', 'min:1', 'max:99999'],
+            'publication_year' => ['nullable', 'integer', 'min:1900', 'max:'.(now()->year + 1)],
         ]);
 
         if ($request->hasFile('image')) {
@@ -740,6 +746,7 @@ class SenaiStockController extends Controller
             ->all();
 
         $request->session()->put('purchase_orders', $orders);
+
         return redirect()
             ->route('senai.dashboard', ['view' => 'purchases', 'tab' => 'historico'])
             ->with('status', "Planilha {$order['orderId']} gerada e enviada para o histórico.");
@@ -994,12 +1001,15 @@ class SenaiStockController extends Controller
 
     public function addCriticalBookToCart(Request $request, Book $book): RedirectResponse
     {
+        EmployeeRole::authorize($request, 'alerts.purchase');
+
         $data = $request->validate([
             'quantity' => ['nullable', 'integer', 'min:1', 'max:500'],
         ]);
 
         $threshold = (int) config('senaistock.low_stock_threshold', 8);
         $suggestedQuantity = (int) ($data['quantity'] ?? max($threshold * 2 - $book->quantity, 1));
+
         return redirect()
             ->route('senai.dashboard', [
                 'view' => 'purchases',
@@ -1018,8 +1028,8 @@ class SenaiStockController extends Controller
             'title' => $book->title,
             'author' => $book->author ?: 'Não informado',
             'publisher' => $book->publisher ?: 'Não informado',
-            'year' => $book->publication_year ?? (2020 + ($book->id % 5)),
-            'pages' => $book->pages ?? 180,
+            'year' => $book->publication_year,
+            'pages' => $book->pages,
             'isbn' => $book->isbn,
             'subject' => $book->subject ?: 'Geral',
             'quantity' => (int) $book->quantity,
@@ -1120,6 +1130,10 @@ class SenaiStockController extends Controller
             'dueDateSort' => $teacherRequest->due_date?->format('Y-m-d'),
             'notes' => $teacherRequest->notes,
             'lastMessage' => $teacherRequest->messages->sortByDesc('created_at')->first()?->message,
+            'rejectionReason' => $teacherRequest->messages
+                ->where('status', 'rejeitado')
+                ->sortByDesc('created_at')
+                ->first()?->message,
             'purchaseOrderId' => $teacherRequest->purchaseOrderItems
                 ->pluck('purchaseOrder')
                 ->filter()
@@ -1136,7 +1150,12 @@ class SenaiStockController extends Controller
         $databaseOrders = collect();
 
         if (Schema::hasTable('purchase_orders')) {
-            $databaseOrders = PurchaseOrder::with(['supplier', 'items.teacherRequest'])
+            $databaseOrders = PurchaseOrder::with([
+                'supplier',
+                'requester',
+                'items.book',
+                'items.teacherRequest.requester',
+            ])
                 ->latest('generated_at')
                 ->latest()
                 ->get()
@@ -1148,16 +1167,24 @@ class SenaiStockController extends Controller
                     'time' => optional($order->generated_at ?? $order->created_at)->format('H:i') ?? now()->format('H:i'),
                     'status' => $order->status,
                     'notes' => $order->notes,
+                    'requestedBy' => $order->requester?->Nome,
                     'items' => $order->items->map(fn ($item) => [
                         'id' => $item->id,
                         'type' => $item->type,
                         'bookId' => $item->book_id,
                         'title' => $item->title,
+                        'isbn' => $item->book?->isbn,
+                        'subject' => $item->book?->subject,
                         'requestedQty' => $item->quantity,
                         'receivedQty' => $item->received_quantity,
                         'remainingQty' => max($item->quantity - $item->received_quantity, 0),
                         'justification' => $item->justification,
                         'teacherRequest' => $item->teacherRequest?->protocol,
+                        'teacherName' => $item->teacherRequest?->teacher_name
+                            ?? $item->teacherRequest?->requester?->Nome,
+                        'className' => $item->teacherRequest?->class_name,
+                        'courseName' => $item->teacherRequest?->course_name,
+                        'dueDate' => $item->teacherRequest?->due_date?->format('d/m/Y'),
                     ])->values()->all(),
                 ]);
         }

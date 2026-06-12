@@ -15,6 +15,8 @@ class Book extends Model
         'isbn',
         'subject',
         'description',
+        'pages',
+        'publication_year',
         'image_path',
         'quantity',
         'minimum_stock',
@@ -25,6 +27,8 @@ class Book extends Model
     protected $casts = [
         'quantity' => 'integer',
         'minimum_stock' => 'integer',
+        'pages' => 'integer',
+        'publication_year' => 'integer',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];

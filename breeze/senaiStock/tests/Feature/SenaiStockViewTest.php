@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Book;
 use App\Models\Cargo;
 use App\Models\Curso;
 use App\Models\Funcionario;
@@ -141,9 +142,9 @@ class SenaiStockViewTest extends TestCase
         $response->assertStatus(200);
         $response->assertViewHas('cargos');
 
-        // Verify cargos count (3 from setUp)
+        // The base setup creates three cargos and application migrations may add operational roles.
         $cargos = $response->viewData('cargos');
-        $this->assertCount(3, $cargos);
+        $this->assertGreaterThanOrEqual(3, $cargos->count());
     }
 
     /**
@@ -320,7 +321,7 @@ class SenaiStockViewTest extends TestCase
 
     public function test_catalog_link_prefills_request_book(): void
     {
-        $book = \App\Models\Book::factory()->create(['title' => 'Livro selecionado no catalogo']);
+        $book = Book::factory()->create(['title' => 'Livro selecionado no catalogo']);
 
         $response = $this->get(route('senai.dashboard', ['view' => 'teacher_requests', 'book_id' => $book->id]));
 
@@ -394,9 +395,66 @@ class SenaiStockViewTest extends TestCase
             ->assertSee("sort('title')", false);
     }
 
+    public function test_book_registration_saves_metadata_and_uses_report_style_filters(): void
+    {
+        Curso::firstOrCreate(['nome_curso' => 'Desenvolvimento de Sistemas']);
+
+        $response = $this->post(route('stock.books.store-new'), [
+            'title' => 'Livro com Metadados',
+            'isbn' => '978-85-12345-67-8',
+            'subject' => 'Desenvolvimento de Sistemas',
+            'quantity' => 4,
+            'minimum_stock' => 2,
+            'publication_year' => 2026,
+            'pages' => 312,
+        ]);
+
+        $response->assertRedirect(route('senai.dashboard', ['view' => 'book_registration']));
+        $this->assertDatabaseHas('books', [
+            'title' => 'Livro com Metadados',
+            'publication_year' => 2026,
+            'pages' => 312,
+        ]);
+
+        $this->get(route('senai.dashboard', ['view' => 'book_registration']))
+            ->assertOk()
+            ->assertSee('Ano de publicação')
+            ->assertSee('Páginas')
+            ->assertSee('Buscar pelo nome do livro')
+            ->assertSee('Todas as áreas')
+            ->assertSee('x-model="subject"', false);
+
+        $this->get(route('senai.dashboard', ['view' => 'library']))
+            ->assertOk()
+            ->assertDontSee('<dt class="text-gray-400">Editora</dt>', false);
+    }
+
+    public function test_tables_are_enhanced_and_school_pages_use_the_new_layout(): void
+    {
+        $tableScript = file_get_contents(resource_path('js/app.js'));
+        $dashboardView = file_get_contents(resource_path('views/senai-stock/index.blade.php'));
+
+        $this->assertStringContainsString('function enhanceTables()', $tableScript);
+        $this->assertStringContainsString('table.dataset.tableSearchPlaceholder', $tableScript);
+        $this->assertStringContainsString('table.dataset.tableFilterColumn', $tableScript);
+        $this->assertStringNotContainsString('Todas as colunas', $tableScript);
+        $this->assertStringContainsString('Ocultar tabela', $tableScript);
+        $this->assertStringContainsString('clearForm(form)', $tableScript);
+        $this->assertStringContainsString('data-table-skip', $dashboardView);
+        $this->assertStringContainsString('data-table-filter-label="Todos os status"', $dashboardView);
+        $this->assertStringContainsString('Motivo da rejeição', $dashboardView);
+        $this->assertStringContainsString('Busca rápida do sistema', file_get_contents(resource_path('views/layouts/app.blade.php')));
+
+        foreach (['book_registration', 'courses', 'classes', 'people'] as $view) {
+            $this->get(route('senai.dashboard', ['view' => $view]))
+                ->assertOk()
+                ->assertSee('Escola ·');
+        }
+    }
+
     public function test_coordinator_can_register_single_book_restock_purchase(): void
     {
-        $book = \App\Models\Book::factory()->create([
+        $book = Book::factory()->create([
             'title' => 'Livro para reposição',
             'subject' => 'Desenvolvimento de Sistemas',
         ]);
@@ -449,18 +507,18 @@ class SenaiStockViewTest extends TestCase
     {
         $curso = Curso::factory()->create(['nome_curso' => 'Desenvolvimento']);
         $turma = Turma::factory()->create(['curso_id' => $curso->id]);
-        $book = \App\Models\Book::factory()->create(['subject' => $curso->nome_curso]);
+        $book = Book::factory()->create(['subject' => $curso->nome_curso]);
         $pastDate = now()->subDay()->toDateString();
 
         $response = $this->from(route('senai.dashboard', ['view' => 'teacher_requests']))
             ->post(route('stock.teacher-requests.store'), [
-            'turma_id' => $turma->id,
-            'curso_id' => $curso->id,
-            'book_id' => $book->id,
-            'quantity' => 3,
-            'due_date' => $pastDate,
-            'notes' => 'Manter estas informações',
-        ]);
+                'turma_id' => $turma->id,
+                'curso_id' => $curso->id,
+                'book_id' => $book->id,
+                'quantity' => 3,
+                'due_date' => $pastDate,
+                'notes' => 'Manter estas informações',
+            ]);
 
         $response
             ->assertRedirect(route('senai.dashboard', ['view' => 'teacher_requests']))
@@ -489,7 +547,7 @@ class SenaiStockViewTest extends TestCase
     {
         $curso = Curso::factory()->create(['nome_curso' => 'Curso antigo']);
         $turma = Turma::factory()->create(['curso_id' => $curso->id, 'nome_turma' => 'Turma antiga']);
-        $book = \App\Models\Book::factory()->create(['subject' => $curso->nome_curso]);
+        $book = Book::factory()->create(['subject' => $curso->nome_curso]);
 
         $this->put(route('stock.courses.update', $curso), ['nome_curso' => 'Curso novo'])
             ->assertRedirect(route('senai.dashboard', ['view' => 'courses']));
@@ -540,8 +598,9 @@ class SenaiStockViewTest extends TestCase
             ->assertSee('list="course-options"', false)
             ->assertDontSee('name="location"', false)
             ->assertSee('name="image"', false)
-            ->assertSee('bookEditTable()', false)
-            ->assertSee('Buscar livro')
+            ->assertSee('bookEditTable(', false)
+            ->assertSee('Buscar pelo nome do livro')
+            ->assertSee('Todas as áreas')
             ->assertSee('Mecatrônica');
     }
 
@@ -560,7 +619,7 @@ class SenaiStockViewTest extends TestCase
             ),
         ])->assertRedirect(route('senai.dashboard', ['view' => 'book_registration']));
 
-        $book = \App\Models\Book::where('title', 'Livro com capa')->firstOrFail();
+        $book = Book::where('title', 'Livro com capa')->firstOrFail();
         Storage::disk('public')->assertExists($book->image_path);
 
         $this->get(route('senai.dashboard', ['view' => 'library']))

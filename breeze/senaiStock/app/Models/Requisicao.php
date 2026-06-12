@@ -16,8 +16,6 @@ class Requisicao extends Model
         'quantidade_livro',
     ];
 
-    // RELACIONAMENTOS
-
     public function livro()
     {
         return $this->belongsTo(Livro::class);

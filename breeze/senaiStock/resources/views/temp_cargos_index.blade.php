@@ -20,7 +20,7 @@
 
         <div class="bg-white rounded-3xl border border-gray-200 overflow-hidden shadow-sm">
             <div class="overflow-x-auto">
-                <table class="w-full text-left text-sm whitespace-nowrap">
+                <table class="w-full text-left text-sm whitespace-nowrap" data-table-search-placeholder="Buscar cargo">
                     <thead class="bg-gray-50/80 text-gray-500">
                         <tr>
                             <th class="px-6 py-4 font-medium">Nome do Cargo</th>
