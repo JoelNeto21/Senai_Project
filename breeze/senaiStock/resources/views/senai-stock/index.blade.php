@@ -801,12 +801,12 @@
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-900 mb-2">Curso / Área</label>
-                    <input type="text" name="subject" list="course-options" required class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm focus:ring-2 focus:ring-red-500 outline-none" placeholder="Busque um curso">
-                    <datalist id="course-options">
+                    <select name="subject" required class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm focus:ring-2 focus:ring-red-500 outline-none">
+                        <option value="">Selecione um curso...</option>
                         @foreach ($cursos as $curso)
-                            <option value="{{ $curso->nome_curso }}"></option>
+                            <option value="{{ $curso->nome_curso }}" @selected(old('subject') === $curso->nome_curso)>{{ $curso->nome_curso }}</option>
                         @endforeach
-                    </datalist>
+                    </select>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-900 mb-2">ISBN (opcional)</label>
@@ -884,7 +884,11 @@
                                             @method('PUT')
                                             <input type="text" name="title" value="{{ $book['title'] }}" required class="rounded-xl border border-gray-300 bg-white px-4 py-3" aria-label="Título">
                                             <input type="text" name="isbn" value="{{ $book['isbn'] }}" class="rounded-xl border border-gray-300 bg-white px-4 py-3" placeholder="ISBN">
-                                            <input type="text" name="subject" value="{{ $book['subject'] }}" list="course-options" required class="rounded-xl border border-gray-300 bg-white px-4 py-3" aria-label="Curso ou área">
+                                            <select name="subject" required class="rounded-xl border border-gray-300 bg-white px-4 py-3" aria-label="Curso ou área">
+                                                @foreach ($cursos as $curso)
+                                                    <option value="{{ $curso->nome_curso }}" @selected($book['subject'] === $curso->nome_curso)>{{ $curso->nome_curso }}</option>
+                                                @endforeach
+                                            </select>
                                             <input type="number" name="minimum_stock" value="{{ $book['minimumStock'] }}" min="1" required class="rounded-xl border border-gray-300 bg-white px-4 py-3" aria-label="Estoque mínimo">
                                             <input type="number" name="publication_year" value="{{ $book['year'] }}" min="1900" max="{{ now()->year + 1 }}" class="rounded-xl border border-gray-300 bg-white px-4 py-3" placeholder="Ano de publicação" aria-label="Ano de publicação">
                                             <input type="number" name="pages" value="{{ $book['pages'] }}" min="1" class="rounded-xl border border-gray-300 bg-white px-4 py-3" placeholder="Páginas" aria-label="Páginas">

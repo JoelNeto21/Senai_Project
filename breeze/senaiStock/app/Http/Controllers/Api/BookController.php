@@ -25,7 +25,7 @@ class BookController extends Controller
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'isbn' => ['required', 'string', 'max:100', 'unique:books,isbn'],
-            'subject' => ['required', 'string', 'max:255'],
+            'subject' => ['required', 'string', 'max:255', 'exists:cursos,nome_curso'],
             'description' => ['nullable', 'string', 'max:1200'],
             'quantity' => ['nullable', 'integer', 'min:0'],
             'minimum_stock' => ['nullable', 'integer', 'min:1'],
@@ -47,9 +47,9 @@ class BookController extends Controller
         $data = $request->validate([
             'title' => ['sometimes', 'required', 'string', 'max:255'],
             'isbn' => ['sometimes', 'required', 'string', 'max:100', Rule::unique('books', 'isbn')->ignore($book->id)],
-            'subject' => ['sometimes', 'required', 'string', 'max:255'],
+            'subject' => ['sometimes', 'required', 'string', 'max:255', 'exists:cursos,nome_curso'],
             'description' => ['sometimes', 'nullable', 'string', 'max:1200'],
-            'quantity' => ['sometimes', 'required', 'integer', 'min:0'],
+            'quantity' => ['prohibited'],
             'minimum_stock' => ['sometimes', 'required', 'integer', 'min:1'],
             'location' => ['sometimes', 'nullable', 'string', 'max:255'],
             'status' => ['sometimes', 'required', 'in:ativo,inativo'],

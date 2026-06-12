@@ -20,6 +20,20 @@ class SenaiStockViewTest extends TestCase
         $this->withEmployeeSession();
     }
 
+    public function test_application_uses_pt_br_user_facing_messages(): void
+    {
+        $this->assertSame('pt_BR', app()->getLocale());
+        $this->assertSame('Você está conectado!', __("You're logged in!"));
+        $this->assertSame(
+            'As credenciais informadas não correspondem aos nossos registros.',
+            trans('auth.failed'),
+        );
+        $this->assertSame(
+            'O campo quantidade não pode ser enviado.',
+            validator(['quantity' => 10], ['quantity' => 'prohibited'])->errors()->first('quantity'),
+        );
+    }
+
     /**
      * Test that library view renders successfully
      */
@@ -495,6 +509,30 @@ class SenaiStockViewTest extends TestCase
             ->assertSee('Administração');
     }
 
+    public function test_course_creation_rejects_accent_and_typo_variants(): void
+    {
+        Curso::factory()->create(['nome_curso' => 'Administração']);
+
+        foreach (['Administracao', 'Admnisitração'] as $variant) {
+            $this->post(route('stock.courses.store'), [
+                'nome_curso' => $variant,
+            ])->assertSessionHasErrors('nome_curso');
+        }
+
+        $this->assertSame(1, Curso::query()->count());
+    }
+
+    public function test_course_creation_allows_distinct_short_names(): void
+    {
+        Curso::factory()->create(['nome_curso' => 'Curso 1']);
+
+        $this->post(route('stock.courses.store'), [
+            'nome_curso' => 'Curso 2',
+        ])->assertRedirect(route('senai.dashboard', ['view' => 'courses']));
+
+        $this->assertDatabaseHas('cursos', ['nome_curso' => 'Curso 2']);
+    }
+
     public function test_stock_withdraw_link_opens_withdraw_tab(): void
     {
         $this->get(route('senai.dashboard', ['view' => 'stock', 'tab' => 'saida']))
@@ -588,20 +626,90 @@ class SenaiStockViewTest extends TestCase
             ->assertDontSee('Gerenciar funcionários');
     }
 
-    public function test_book_registration_uses_single_searchable_course_field(): void
+    public function test_book_registration_uses_course_selects(): void
     {
         Curso::factory()->create(['nome_curso' => 'Mecatrônica']);
 
         $this->get(route('senai.dashboard', ['view' => 'book_registration']))
             ->assertOk()
             ->assertDontSee('Buscar curso / área')
-            ->assertSee('list="course-options"', false)
+            ->assertSee('<select name="subject"', false)
+            ->assertDontSee('list="course-options"', false)
             ->assertDontSee('name="location"', false)
             ->assertSee('name="image"', false)
             ->assertSee('bookEditTable(', false)
             ->assertSee('Buscar pelo nome do livro')
             ->assertSee('Todas as áreas')
             ->assertSee('Mecatrônica');
+    }
+
+    public function test_book_registration_rejects_unregistered_course(): void
+    {
+        $this->post(route('stock.books.store-new'), [
+            'title' => 'Livro com curso inválido',
+            'subject' => 'Curso digitado manualmente',
+            'quantity' => 10,
+        ])->assertSessionHasErrors('subject');
+
+        $this->assertDatabaseMissing('books', [
+            'title' => 'Livro com curso inválido',
+        ]);
+    }
+
+    public function test_books_api_rejects_unregistered_courses(): void
+    {
+        $book = Book::factory()->create();
+
+        $this->postJson('/api/books', [
+            'title' => 'Livro com curso inválido via API',
+            'isbn' => '978-85-99999-01-1',
+            'subject' => 'Curso não cadastrado',
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors('subject');
+
+        $this->putJson("/api/books/{$book->id}", [
+            'subject' => 'Outro curso não cadastrado',
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors('subject');
+    }
+
+    public function test_books_api_accepts_registered_courses(): void
+    {
+        $firstCourse = Curso::factory()->create(['nome_curso' => 'Administração']);
+        $secondCourse = Curso::factory()->create(['nome_curso' => 'Eletroeletrônica']);
+
+        $response = $this->postJson('/api/books', [
+            'title' => 'Livro cadastrado via API',
+            'isbn' => '978-85-99999-02-8',
+            'subject' => $firstCourse->nome_curso,
+        ])->assertCreated();
+
+        $bookId = $response->json('id');
+
+        $this->putJson("/api/books/{$bookId}", [
+            'subject' => $secondCourse->nome_curso,
+        ])->assertOk();
+
+        $this->assertDatabaseHas('books', [
+            'id' => $bookId,
+            'subject' => $secondCourse->nome_curso,
+        ]);
+    }
+
+    public function test_books_api_prohibits_direct_quantity_updates(): void
+    {
+        $book = Book::factory()->create(['quantity' => 10]);
+
+        $this->putJson("/api/books/{$book->id}", [
+            'quantity' => 99,
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors('quantity');
+
+        $this->assertDatabaseHas('books', [
+            'id' => $book->id,
+            'quantity' => 10,
+        ]);
+        $this->assertDatabaseCount('movements', 0);
     }
 
     public function test_book_cover_upload_is_saved_and_shown_in_catalog(): void

@@ -11,8 +11,8 @@ class CursoSeeder extends Seeder
     {
         collect([
             'Desenvolvimento de Sistemas',
-            'Administracao',
-            'Eletroeletronica',
+            'Administração',
+            'Eletroeletrônica',
         ])->each(fn (string $curso) => Curso::firstOrCreate(['nome_curso' => $curso]));
     }
 }

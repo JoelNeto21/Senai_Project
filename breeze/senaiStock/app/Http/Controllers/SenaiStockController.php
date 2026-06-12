@@ -928,6 +928,9 @@ class SenaiStockController extends Controller
             'nome_curso' => ['required', 'string', 'max:255', 'unique:cursos,nome_curso'],
         ]);
 
+        $data['nome_curso'] = Str::squish($data['nome_curso']);
+        $this->ensureCourseNameIsDistinct($data['nome_curso']);
+
         Curso::create($data);
 
         return redirect()
@@ -942,6 +945,9 @@ class SenaiStockController extends Controller
         $data = $request->validate([
             'nome_curso' => ['required', 'string', 'max:255', 'unique:cursos,nome_curso,'.$curso->id],
         ]);
+
+        $data['nome_curso'] = Str::squish($data['nome_curso']);
+        $this->ensureCourseNameIsDistinct($data['nome_curso'], $curso);
 
         $oldName = $curso->nome_curso;
         DB::transaction(function () use ($curso, $data, $oldName): void {
@@ -1335,6 +1341,26 @@ class SenaiStockController extends Controller
             ->lower()
             ->replaceMatches('/[^a-z0-9]+/', '')
             ->toString();
+    }
+
+    private function ensureCourseNameIsDistinct(string $name, ?Curso $ignoredCourse = null): void
+    {
+        $normalizedName = $this->normalizedCourseName($name);
+        $courses = Curso::query()
+            ->when($ignoredCourse, fn ($query) => $query->whereKeyNot($ignoredCourse->id))
+            ->get(['nome_curso']);
+
+        foreach ($courses as $course) {
+            $existingName = $this->normalizedCourseName($course->nome_curso);
+            $isLikelyTypo = min(strlen($existingName), strlen($normalizedName)) >= 10
+                && levenshtein($existingName, $normalizedName) <= 2;
+
+            if ($existingName === $normalizedName || $isLikelyTypo) {
+                throw ValidationException::withMessages([
+                    'nome_curso' => "Já existe um curso semelhante cadastrado: {$course->nome_curso}.",
+                ]);
+            }
+        }
     }
 
     private function nextOrderNumber(): string

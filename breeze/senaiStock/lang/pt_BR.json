@@ -30,7 +30,10 @@
     "Reset Password": "Redefinir senha",
     "Save": "Salvar",
     "Saved.": "Salvo.",
+    "Thanks for signing up! Before getting started, could you verify your email address by clicking on the link we just emailed to you? If you didn't receive the email, we will gladly send you another.": "Obrigado por se cadastrar! Antes de começar, confirme seu endereço de e-mail clicando no link que enviamos. Se não recebeu o e-mail, enviaremos outro.",
     "This is a secure area of the application. Please confirm your password before continuing.": "Esta é uma área segura do sistema. Confirme sua senha antes de continuar.",
     "Update Password": "Atualizar senha",
+    "Update your account's profile information and email address.": "Atualize as informações do seu perfil e seu endereço de e-mail.",
+    "You're logged in!": "Você está conectado!",
     "Your email address is unverified.": "Seu endereço de e-mail ainda não foi verificado."
 }

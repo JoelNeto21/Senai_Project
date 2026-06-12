@@ -11,8 +11,8 @@ class TurmaSeeder extends Seeder
     public function run(): void
     {
         $desenvolvimento = Curso::firstOrCreate(['nome_curso' => 'Desenvolvimento de Sistemas']);
-        $administracao = Curso::firstOrCreate(['nome_curso' => 'Administracao']);
-        $eletro = Curso::firstOrCreate(['nome_curso' => 'Eletroeletronica']);
+        $administracao = Curso::firstOrCreate(['nome_curso' => 'Administração']);
+        $eletro = Curso::firstOrCreate(['nome_curso' => 'Eletroeletrônica']);
 
         collect([
             ['nome_turma' => 'DS-1A', 'curso_id' => $desenvolvimento->id],
